@@ -3,7 +3,7 @@ package com.bnyro
 import com.lagradost.cloudstream3.mainPageOf
 
 class XcineIO : XCineBase() {
-    override var name = "Movie4k"
+    override var name = "XcineIO"
     override var mainUrl = "https://www3.xcine.io"
     override var mainAPI = "https://api.xcine.io"
 
