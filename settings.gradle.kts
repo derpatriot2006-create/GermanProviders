@@ -1,9 +1,11 @@
 rootProject.name = "CloudstreamPlugins"
 
-// This file sets what projects are included. Every time you add a new project, you must add it
-// to the includes below.
+File(rootDir, ".").eachDir { dir ->
+    if (File(dir, "build.gradle.kts").exists()) {
+        include(dir.name)
+    }
+}
 
-// Plugins are included like this
-include(
-    "Xcineio"
-)
+fun File.eachDir(block: (File) -> Unit) {
+    listFiles()?.filter { it.isDirectory }?.forEach { block(it) }
+}
