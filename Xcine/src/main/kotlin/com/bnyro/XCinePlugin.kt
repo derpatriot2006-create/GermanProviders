@@ -8,6 +8,7 @@ import com.lagradost.cloudstream3.extractors.DoodLiExtractor
 import com.lagradost.cloudstream3.extractors.DoodToExtractor
 import com.lagradost.cloudstream3.extractors.DoodWsExtractor
 import com.lagradost.cloudstream3.extractors.FileMoonSx
+import com.lagradost.cloudstream3.extractors.Lulustream2
 import com.lagradost.cloudstream3.extractors.MixDropAg
 import com.lagradost.cloudstream3.extractors.MixDropTo
 import com.lagradost.cloudstream3.extractors.StreamTape
@@ -20,6 +21,7 @@ class XCinePlugin: Plugin() {
         // All providers should be added in this manner. Please don't edit the providers list directly.
         registerMainAPI(XcineIO())
         registerMainAPI(Movie4k())
+
         registerExtractorAPI(Voe())
         registerExtractorAPI(FileMoonSx())
         registerExtractorAPI(MixDropPs())
@@ -35,5 +37,10 @@ class XCinePlugin: Plugin() {
         registerExtractorAPI(DoodWsExtractor())
         registerExtractorAPI(MixVideo())
         registerExtractorAPI(DoodLiExtractor())
+        registerExtractorAPI(SupervideoTv())
+        registerExtractorAPI(DroploadIo())
+        registerExtractorAPI(BigwarpIO())
+        registerExtractorAPI(GoofyBanana())
+        registerExtractorAPI(Lulustream2())
     }
 }
