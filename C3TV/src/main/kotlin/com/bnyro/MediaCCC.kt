@@ -67,9 +67,9 @@ open class MediaCCC : MainAPI() {
             this.tags = response.tags
             this.plot = response.description
             this.actors = response.persons.map { ActorData(Actor(it)) }
-            this.duration = response.duration.toInt()
+            this.duration = response.duration?.toInt()?.div(60)
             this.comingSoon = response.recordings.isEmpty()
-            this.year = response.date.substring(0, 4).toIntOrNull()
+            this.year = response.date?.substring(0, 4)?.toIntOrNull()
         }
     }
 
@@ -85,10 +85,11 @@ open class MediaCCC : MainAPI() {
         for (recording in recordings) {
             if (recording.mimeType !in arrayOf("video/mp4", "video/mpeg")) continue
 
+            val streamInfo = "MediaCCC (${recording.language})"
             callback.invoke(
                 ExtractorLink(
-                    source = "MediaCCC",
-                    name = "MediaCCC",
+                    source = streamInfo,
+                    name = streamInfo,
                     url = recording.recordingUrl,
                     referer = "",
                     quality = recording.height?.toInt() ?: Qualities.Unknown.value,
@@ -113,31 +114,31 @@ open class MediaCCC : MainAPI() {
         val guid: String,
         val title: String,
         val subtitle: String?,
-        val slug: String,
-        val link: String,
-        val description: String,
+        val slug: String?,
+        val link: String?,
+        val description: String?,
         @JsonProperty("original_language")
-        val originalLanguage: String,
+        val originalLanguage: String?,
         val persons: List<String>,
         val tags: List<String>,
         @JsonProperty("view_count")
-        val viewCount: Long,
-        val promoted: Boolean,
-        val date: String,
+        val viewCount: Long?,
+        val promoted: Boolean?,
+        val date: String?,
         @JsonProperty("release_date")
-        val releaseDate: String,
+        val releaseDate: String?,
         @JsonProperty("updated_at")
-        val updatedAt: String,
-        val length: Long,
-        val duration: Long,
+        val updatedAt: String?,
+        val length: Long?,
+        val duration: Long?,
         @JsonProperty("thumb_url")
-        val thumbUrl: String,
+        val thumbUrl: String?,
         @JsonProperty("poster_url")
-        val posterUrl: String,
+        val posterUrl: String?,
         @JsonProperty("timeline_url")
-        val timelineUrl: String,
+        val timelineUrl: String?,
         @JsonProperty("thumbnails_url")
-        val thumbnailsUrl: String,
+        val thumbnailsUrl: String?,
         @JsonProperty("frontend_link")
         val frontendLink: String,
         val url: String,
@@ -145,16 +146,7 @@ open class MediaCCC : MainAPI() {
         val conferenceTitle: String,
         @JsonProperty("conference_url")
         val conferenceUrl: String,
-        val related: List<Related> = emptyList(),
         val recordings: List<Recording> = emptyList(),
-    )
-
-    data class Related(
-        @JsonProperty("event_id")
-        val eventId: Long,
-        @JsonProperty("event_guid")
-        val eventGuid: String,
-        val weight: Long,
     )
 
     data class Recording(
