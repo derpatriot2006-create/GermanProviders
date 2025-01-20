@@ -35,7 +35,7 @@ open class MediaCCC : MainAPI() {
     private fun Event.toSearchResponse(): SearchResponse {
         return newMovieSearchResponse(
             name = this.title,
-            url = Link(this.frontendLink, this.url).toJson(),
+            url = Link(this.frontendLink, this.guid).toJson(),
             type = TvType.Others,
         ) {
             this.posterUrl = this@toSearchResponse.thumbUrl
