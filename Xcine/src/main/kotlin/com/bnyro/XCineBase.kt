@@ -40,7 +40,7 @@ abstract class XCineBase : MainAPI() {
             app.get("$mainAPI/${request.data}&page=$page", referer = "$mainUrl/")
                 .parsedSafe<MediaResponse>()?.movies?.mapNotNull { res ->
                     res.toSearchResponse()
-                } ?: throw ErrorLoadingException()
+                } ?: throw ErrorLoadingException("Failed to parse Homepage.")
         return newHomePageResponse(request.name, home)
     }
 
@@ -63,13 +63,14 @@ abstract class XCineBase : MainAPI() {
         val res = app.get("$mainAPI/data/browse/?lang=2&keyword=$query", referer = "$mainUrl/").text
         return tryParseJson<MediaResponse>(res)?.movies?.mapNotNull {
             it.toSearchResponse()
-        } ?: throw ErrorLoadingException()
+        } ?: throw ErrorLoadingException("Failed to parse search response.")
     }
 
     // passed parameter url is the ID of the movie / series
     override suspend fun load(url: String): LoadResponse? {
-        val res = app.get("$mainAPI/data/watch/?_id=$url", referer = "$mainUrl/")
-            .parsedSafe<MediaDetail>() ?: throw ErrorLoadingException()
+        val requestUrl = "$mainAPI/data/watch/?_id=$url"
+        val res = app.get(requestUrl, referer = "$mainUrl/")
+            .parsedSafe<MediaDetail>() ?: throw ErrorLoadingException("Failed to get and parse $requestUrl")
         val type = if (res.tv == 1) "tv" else "movie"
 
         val recommendations =
@@ -90,8 +91,8 @@ abstract class XCineBase : MainAPI() {
             }.orEmpty()
 
             newTvSeriesLoadResponse(
-                res.title ?: res.originalTitle ?: return null,
-                url,
+                res.title ?: return null,
+                requestUrl,
                 TvType.TvSeries,
                 episodes
             ) {
@@ -105,8 +106,8 @@ abstract class XCineBase : MainAPI() {
             }
         } else {
             newMovieLoadResponse(
-                res.originalTitle ?: res.title ?: return null,
-                url,
+                res.title ?: return null,
+                requestUrl,
                 TvType.Movie,
                 res.streams?.map { it.stream }?.toJson()
             ) {
@@ -127,8 +128,8 @@ abstract class XCineBase : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-
         val loadData = parseJson<List<String>>(data)
+
         loadData.apmap {
             val link = fixUrlNull(it) ?: return@apmap null
             if (link.startsWith("https://dl.streamcloud")) {
@@ -164,7 +165,6 @@ abstract class XCineBase : MainAPI() {
     data class MediaDetail(
         @JsonProperty("_id") val id: String? = null,
         @JsonProperty("tv") val tv: Int? = null,
-        @JsonProperty("original_title") val originalTitle: String? = null,
         @JsonProperty("title") val title: String? = null,
         @JsonProperty("poster_path") val posterPath: String? = null,
         @JsonProperty("backdrop_path") val backdropPath: String? = null,
