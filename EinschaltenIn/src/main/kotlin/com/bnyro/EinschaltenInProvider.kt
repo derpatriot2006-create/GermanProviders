@@ -23,7 +23,7 @@ open class EinschaltenInProvider : MainAPI() {
     override val hasQuickSearch = true
     override val usesWebView = false
     override val hasMainPage = true
-    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
+    override val supportedTypes = setOf(TvType.Movie)
     override var mainUrl = "https://einschalten.in"
 
     override suspend fun getMainPage(
@@ -37,7 +37,7 @@ open class EinschaltenInProvider : MainAPI() {
     }
 
     private fun getImageUrl(file: String): String {
-        return "$mainUrl/images/poster/$file"
+        return "$mainUrl/image/poster/$file"
     }
 
     private fun getData(response: Response): List<Any>? {
