@@ -21,10 +21,9 @@ open class HDFilme : MainAPI() {
         request: MainPageRequest
     ): HomePageResponse {
         val doc = app.get(mainUrl).document
+        val recommendations = doc.select("#dle-content div.item").map { it.toSearchResponse() }
 
-        return newHomePageResponse(
-            request,
-            doc.select("#dle-content div.item").map { it.toSearchResponse() })
+        return newHomePageResponse(HomePageList(name = "Recommended", recommendations))
     }
 
     private fun Element.toSearchResponse(): SearchResponse {
