@@ -1,7 +1,18 @@
 package com.bnyro
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.ErrorLoadingException
+import com.lagradost.cloudstream3.HomePageList
+import com.lagradost.cloudstream3.HomePageResponse
+import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newMovieLoadResponse
+import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 
@@ -15,10 +26,6 @@ open class EinschaltenInProvider : MainAPI() {
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
     override var mainUrl = "https://einschalten.in"
 
-    override val mainPage = mainPageOf(
-        "public/events/recent" to "Recent events",
-    )
-
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
@@ -26,26 +33,36 @@ open class EinschaltenInProvider : MainAPI() {
         val response = app.get("${mainUrl}/__data.json")
             .parsedSafe<Response>() ?: throw ErrorLoadingException()
 
-        return newHomePageResponse(request.name, toSearchResponses(response))
+        return newHomePageResponse(HomePageList("Popular", toSearchResponses(response)))
     }
 
     private fun getImageUrl(file: String): String {
         return "$mainUrl/images/poster/$file"
     }
 
+    private fun getData(response: Response): List<Any>? {
+        return response.nodes.firstOrNull {
+            it.type == "data" && it.data.orEmpty().filterNotNull().isNotEmpty()
+        }?.data?.filterNotNull()
+    }
+
     private fun toSearchResponses(response: Response): List<SearchResponse> {
-        val dataNode = response.nodes.firstOrNull { it.type == "data" } ?: return emptyList()
-        val dataItems = dataNode.data.orEmpty().filterNotNull()
-        val movies = dataItems.drop(dataItems.indexOfFirst { it.isArray } + 1).chunked(6)
+        val dataItems = getData(response) ?: return emptyList()
+
+        val infoListSize = 6
+        val infoStream = dataItems.drop(dataItems.indexOfFirst { it is List<*> } + 1)
+            .filter { it !is Map<*, *> || it.size == infoListSize - 1 }
+        val movies = infoStream.chunked(infoListSize)
+            .filter { it.size == infoListSize }
 
         return movies.map { infoList ->
             newMovieSearchResponse(
-                name = infoList[2].textValue(),
-                url = "$mainUrl/movies/${infoList[1].textValue()}",
+                name = infoList[2] as String,
+                url = "$mainUrl/movies/${infoList[1] as Int}",
                 type = TvType.Movie
             ) {
-                this.posterUrl = getImageUrl(infoList[4].textValue())
-                this.year = infoList[3].textValue().substring(0, 4).toIntOrNull()
+                this.posterUrl = getImageUrl(infoList[4] as String)
+                this.year = (infoList[3] as String).substring(0, 4).toIntOrNull()
             }
         }
     }
@@ -63,19 +80,18 @@ open class EinschaltenInProvider : MainAPI() {
         val response = app.get("$url/__data.json")
             .parsedSafe<Response>() ?: throw ErrorLoadingException()
 
-        val dataNode = response.nodes.firstOrNull { it.type == "data" } ?: return null
-        val dataList = dataNode.data.orEmpty().filterNotNull().dropWhile { it.isObject }
+        val dataList = getData(response)?.dropWhile { it is Map<*, *> } ?: return null
 
         return newMovieLoadResponse(
-            name = dataList[1].textValue(),
+            name = dataList[1] as String,
             url = url,
             type = TvType.Movie,
             data = url
         ) {
-            this.posterUrl = getImageUrl(dataList[6].textValue())
-            this.plot = dataList[3].textValue()
-            this.duration = dataList[5].intValue()
-            this.year = dataList[4].textValue().substring(0, 4).toIntOrNull()
+            this.posterUrl = getImageUrl(dataList[6] as String)
+            this.plot = dataList[3] as String
+            this.duration = dataList[5] as Int
+            this.year = (dataList[4] as String).substring(0, 4).toIntOrNull()
         }
     }
 
@@ -101,7 +117,7 @@ open class EinschaltenInProvider : MainAPI() {
 
     data class Node(
         val type: String,
-        val data: List<JsonNode?>?,
+        val data: List<Any?>?,
     )
 
     data class StreamSource(
