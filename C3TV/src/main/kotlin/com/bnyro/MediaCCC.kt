@@ -83,19 +83,23 @@ open class MediaCCC : MainAPI() {
         if (recordings.isEmpty()) return false
 
         for (recording in recordings) {
-            if (recording.mimeType !in arrayOf("video/mp4", "video/mpeg")) continue
-
-            val streamInfo = "MediaCCC (${recording.language})"
-            callback.invoke(
-                ExtractorLink(
-                    source = streamInfo,
-                    name = streamInfo,
-                    url = recording.recordingUrl,
-                    referer = "",
-                    quality = recording.height?.toInt() ?: Qualities.Unknown.value,
-                    type = ExtractorLinkType.VIDEO
+            if (recording.mimeType.startsWith("video")) {
+                val streamInfo = "MediaCCC (${recording.language})"
+                callback.invoke(
+                    ExtractorLink(
+                        source = streamInfo,
+                        name = streamInfo,
+                        url = recording.recordingUrl,
+                        referer = "",
+                        quality = recording.height?.toInt() ?: Qualities.Unknown.value,
+                        type = ExtractorLinkType.VIDEO
+                    )
                 )
-            )
+            } else if (recording.mimeType.startsWith("text")) {
+                subtitleCallback.invoke(
+                    SubtitleFile(recording.language, recording.url)
+                )
+            }
         }
 
         return true
