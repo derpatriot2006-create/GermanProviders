@@ -45,5 +45,6 @@ class XCinePlugin: Plugin() {
         registerExtractorAPI(Lulustream2())
         registerExtractorAPI(Mixdrp())
         registerExtractorAPI(Luluvdo())
+        registerExtractorAPI(Ryderjet())
     }
 }

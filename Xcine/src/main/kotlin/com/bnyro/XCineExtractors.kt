@@ -59,3 +59,8 @@ class Mixdrp:  MixDrop() {
 class Luluvdo: StreamWishExtractor() {
     override val mainUrl = "https://luluvdo.com"
 }
+
+class Ryderjet: Supervideo() {
+    override var name = "Ryderjet"
+    override var mainUrl = "https://ryderjet.com"
+}
