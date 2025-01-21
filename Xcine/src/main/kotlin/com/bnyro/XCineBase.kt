@@ -28,12 +28,8 @@ abstract class XCineBase : MainAPI() {
 
     private fun getImageUrl(link: String?): String? {
         if (link == null) return null
-        return if (link.startsWith("/")) "https://image.tmdb.org/t/p/w500/$link" else link
-    }
 
-    private fun getBackupImageUrl(link: String?): String? {
-        if (link == null) return null
-        return "https://cdn.movie4k.stream/data${link.substringAfter("/data")}"
+        return if (link.startsWith("/")) "https://image.tmdb.org/t/p/w500/$link" else link
     }
 
     override suspend fun getMainPage(
@@ -50,14 +46,13 @@ abstract class XCineBase : MainAPI() {
 
     private fun Media.toSearchResponse(): SearchResponse? {
         return newAnimeSearchResponse(
-            title ?: original_title ?: return null,
-//            Data(_id).toJson(),
-            Link(id=_id).toJson(),
+            title ?: originalTitle ?: return null,
+            id.orEmpty(),
             TvType.TvSeries,
             false
         ) {
-            this.posterUrl = getImageUrl(poster_path ?: backdrop_path) ?: getBackupImageUrl(img)
-            addDub(last_updated_epi?.toIntOrNull())
+            this.posterUrl = getImageUrl(posterPath ?: backdropPath)
+            addDub(lastUpdatedEpi?.toIntOrNull())
             addSub(totalEpisodes?.toIntOrNull())
         }
     }
@@ -71,53 +66,59 @@ abstract class XCineBase : MainAPI() {
         } ?: throw ErrorLoadingException()
     }
 
+    // passed parameter url is the ID of the movie / series
     override suspend fun load(url: String): LoadResponse? {
-        val id = parseJson<Link>(url).id
-
-        val res = app.get("$mainAPI/data/watch/?_id=$id", referer = "$mainUrl/")
+        val res = app.get("$mainAPI/data/watch/?_id=$url", referer = "$mainUrl/")
             .parsedSafe<MediaDetail>() ?: throw ErrorLoadingException()
         val type = if (res.tv == 1) "tv" else "movie"
 
         val recommendations =
-            app.get("$mainAPI/data/related_movies/?lang=2&cat=$type&_id=$id&server=0").text.let {
+            app.get("$mainAPI/data/related_movies/?lang=2&cat=$type&_id=$url&server=0").text.let {
                 tryParseJson<List<Media>>(it)
             }?.mapNotNull {
                 it.toSearchResponse()
             }
 
         return if (type == "tv") {
-            val episodes = res.streams?.groupBy { it.e.toString().toIntOrNull() }?.mapNotNull { eps ->
-                val epsNum = eps.key
+            val episodes = res.streams?.groupBy { it.e }?.mapNotNull { eps ->
                 val epsLink = eps.value.map { it.stream }.toJson()
-                Episode(epsLink, episode = epsNum)
-            } ?: emptyList()
+
+                newEpisode(epsLink) {
+                    this.episode = eps.key
+                    this.name = eps.value.firstOrNull()?.eTitle
+                }
+            }.orEmpty()
+
             newTvSeriesLoadResponse(
-                res.title ?: res.original_title ?: return null,
+                res.title ?: res.originalTitle ?: return null,
                 url,
                 TvType.TvSeries,
                 episodes
             ) {
-                this.posterUrl = getImageUrl(res.backdrop_path ?: res.poster_path)
+                this.posterUrl = getImageUrl(res.backdropPath ?: res.posterPath)
                 this.year = res.year
                 this.plot = res.storyline ?: res.overview
                 this.tags = listOf(res.genres ?: "")
+                this.actors = res.cast?.map { ActorData(Actor(it)) }
+                this.contentRating = res.rating
                 this.recommendations = recommendations
             }
         } else {
             newMovieLoadResponse(
-                res.original_title ?: res.title ?: return null,
+                res.originalTitle ?: res.title ?: return null,
                 url,
                 TvType.Movie,
-                res.streams?.map { Link(it.stream) }?.toJson()
+                res.streams?.map { it.stream }?.toJson()
             ) {
-                this.posterUrl = getImageUrl(res.backdrop_path ?: res.poster_path)
+                this.posterUrl = getImageUrl(res.backdropPath ?: res.posterPath)
                 this.year = res.year
                 this.plot = res.storyline ?: res.overview
                 this.tags = listOf(res.genres ?: "")
+                this.actors = res.cast?.map { ActorData(Actor(it)) }
+                this.contentRating = res.rating
                 this.recommendations = recommendations
             }
         }
-
     }
 
     override suspend fun loadLinks(
@@ -127,9 +128,9 @@ abstract class XCineBase : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
 
-        val loadData = parseJson<List<Link>>(data)
+        val loadData = parseJson<List<String>>(data)
         loadData.apmap {
-            val link = fixUrlNull(it.link) ?: return@apmap null
+            val link = fixUrlNull(it) ?: return@apmap null
             if (link.startsWith("https://dl.streamcloud")) {
                 callback.invoke(
                     ExtractorLink(
@@ -153,55 +154,42 @@ abstract class XCineBase : MainAPI() {
         return true
     }
 
-    data class Link(
-        val link: String? = null,
-        val id: String? = null,
-    )
-
-    data class Season(
-        @JsonProperty("_id") val _id: String? = null,
-        @JsonProperty("s") val s: Int? = null,
-        @JsonProperty("title") val title: String? = null,
-        @JsonProperty("year") val year: Int? = null,
-        @JsonProperty("streams") val streams: ArrayList<Streams>? = arrayListOf(),
-    )
-
     data class Streams(
-        @JsonProperty("_id") val _id: String? = null,
+        @JsonProperty("_id") val id: String? = null,
         @JsonProperty("stream") val stream: String? = null,
-        @JsonProperty("e") val e: Any? = null,
-        @JsonProperty("e_title") val e_title: String? = null,
+        @JsonProperty("e") val e: Int? = null,
+        @JsonProperty("e_title") val eTitle: String? = null,
     )
 
     data class MediaDetail(
-        @JsonProperty("_id") val _id: String? = null,
+        @JsonProperty("_id") val id: String? = null,
         @JsonProperty("tv") val tv: Int? = null,
-        @JsonProperty("original_title") val original_title: String? = null,
+        @JsonProperty("original_title") val originalTitle: String? = null,
         @JsonProperty("title") val title: String? = null,
-        @JsonProperty("poster_path") val poster_path: String? = null,
-        @JsonProperty("backdrop_path") val backdrop_path: String? = null,
+        @JsonProperty("poster_path") val posterPath: String? = null,
+        @JsonProperty("backdrop_path") val backdropPath: String? = null,
         @JsonProperty("year") val year: Int? = null,
         @JsonProperty("rating") val rating: String? = null,
         @JsonProperty("genres") val genres: String? = null,
         @JsonProperty("storyline") val storyline: String? = null,
         @JsonProperty("overview") val overview: String? = null,
         @JsonProperty("streams") val streams: ArrayList<Streams>? = arrayListOf(),
+        @JsonProperty("cast") val cast: ArrayList<String>? = arrayListOf(),
     )
 
     data class Media(
-        @JsonProperty("_id") val _id: String? = null,
-        @JsonProperty("original_title") val original_title: String? = null,
+        @JsonProperty("_id") val id: String? = null,
+        @JsonProperty("original_title") val originalTitle: String? = null,
         @JsonProperty("title") val title: String? = null,
-        @JsonProperty("poster_path") val poster_path: String? = null,
-        @JsonProperty("backdrop_path") val backdrop_path: String? = null,
+        @JsonProperty("poster_path") val posterPath: String? = null,
+        @JsonProperty("backdrop_path") val backdropPath: String? = null,
         @JsonProperty("img") val img: String? = null,
-        @JsonProperty("imdb_id") val imdb_id: String? = null,
+        @JsonProperty("imdb_id") val imdbId: String? = null,
         @JsonProperty("totalEpisodes") val totalEpisodes: String? = null,
-        @JsonProperty("last_updated_epi") val last_updated_epi: String? = null,
+        @JsonProperty("last_updated_epi") val lastUpdatedEpi: String? = null,
     )
 
     data class MediaResponse(
         @JsonProperty("movies") val movies: ArrayList<Media>? = arrayListOf(),
     )
-
 }
