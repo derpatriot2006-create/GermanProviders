@@ -46,23 +46,37 @@ open class EinschaltenInProvider : MainAPI() {
         }?.data?.filterNotNull()
     }
 
-    private fun toSearchResponses(response: Response): List<SearchResponse> {
+    private fun parseMovieItems(response: Response): List<MovieItem> {
         val dataItems = getData(response) ?: return emptyList()
+        val infoList = dataItems.filterIsInstance<Map<String, Int>>()
 
-        val infoListSize = 6
-        val infoStream = dataItems.drop(dataItems.indexOfFirst { it is List<*> } + 1)
-            .filter { it !is Map<*, *> || it.size == infoListSize - 1 }
-        val movies = infoStream.chunked(infoListSize)
-            .filter { it.size == infoListSize }
+        return infoList
+            .filter { it.containsKey("id") && it.containsKey("title") }
+            .map { infoIndices ->
+                MovieItem(
+                    id = dataItems[infoIndices["id"]!!] as Int,
+                    title = dataItems[infoIndices["title"]!!] as String,
+                    releaseDate = dataItems[infoIndices["releaseDate"]!!] as String,
+                    posterPath = dataItems[infoIndices["posterPath"]!!] as String,
+                    voteAverage = dataItems[infoIndices["voteAverage"]!!].toString().toFloatOrNull()
+                        ?: 0f,
+                    overview = infoIndices["overview"]?.let { dataItems[it] as String? },
+                    runtime = infoIndices["runtime"]?.let { dataItems[it] as Int? }
+                )
+            }
+    }
 
-        return movies.map { infoList ->
+    private fun toSearchResponses(response: Response): List<SearchResponse> {
+        val movieObjects = parseMovieItems(response)
+
+        return movieObjects.map {
             newMovieSearchResponse(
-                name = infoList[2] as String,
-                url = "$mainUrl/movies/${infoList[1] as Int}",
+                name = it.title,
+                url = "$mainUrl/movies/${it.id}",
                 type = TvType.Movie
             ) {
-                this.posterUrl = getImageUrl(infoList[4] as String)
-                this.year = (infoList[3] as String).substring(0, 4).toIntOrNull()
+                this.posterUrl = getImageUrl(it.posterPath)
+                this.year = it.releaseDate.substring(0, 4).toIntOrNull()
             }
         }
     }
@@ -80,18 +94,18 @@ open class EinschaltenInProvider : MainAPI() {
         val response = app.get("$url/__data.json")
             .parsedSafe<Response>() ?: throw ErrorLoadingException()
 
-        val dataList = getData(response)?.dropWhile { it is Map<*, *> } ?: return null
+        val movie = parseMovieItems(response).firstOrNull() ?: return null
 
         return newMovieLoadResponse(
-            name = dataList[1] as String,
+            name = movie.title,
             url = url,
             type = TvType.Movie,
             data = url
         ) {
-            this.posterUrl = getImageUrl(dataList[6] as String)
-            this.plot = dataList[3] as String
-            this.duration = dataList[5] as Int
-            this.year = (dataList[4] as String).substring(0, 4).toIntOrNull()
+            this.posterUrl = getImageUrl(movie.posterPath)
+            this.plot = movie.overview
+            this.duration = movie.runtime
+            this.year = movie.releaseDate.substring(0, 4).toIntOrNull()
         }
     }
 
@@ -109,6 +123,16 @@ open class EinschaltenInProvider : MainAPI() {
 
         return true
     }
+
+    data class MovieItem(
+        val id: Int,
+        val title: String,
+        val releaseDate: String,
+        val posterPath: String,
+        val voteAverage: Float,
+        val overview: String? = null,
+        val runtime: Int? = null
+    )
 
     data class Response(
         val type: String,
