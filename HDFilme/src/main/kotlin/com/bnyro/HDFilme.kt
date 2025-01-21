@@ -56,9 +56,11 @@ open class HDFilme : MainAPI() {
         val meta = details.select("h1 + div span:not(.divider)")
         val description = doc.select("section:has(> h2) > div > p").firstOrNull()?.text()
         val actors = details.select("li > span > a").map { it.text() }
-        val streams = doc.select("#streams a").mapNotNull {
-            Regex("(?<=')http.*(?=')").find(it.attr("onclick"))?.value
-        }
+
+        val streamsJsUrl = doc.select("script[src^='https://meinecloud.click/ddl']").attr("src")
+        val streamsJs = app.get(streamsJsUrl).text
+        val streamLinkRegex = Regex("(?<=')http.*(?=')")
+        val streams = streamLinkRegex.findAll(streamsJs).map { it.value }.toList()
 
         val related = doc.select("section.top-filme .listing a").map {
             newMovieSearchResponse(
@@ -91,10 +93,9 @@ open class HDFilme : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val loadData = parseJson<LoadData>(data)
-        if (loadData.links.isEmpty()) return false
+        val links = parseJson<LoadData>(data).links
 
-        loadData.links.apmap {
+        links.apmap {
             val link = fixUrlNull(it) ?: return@apmap null
 
             loadExtractor(
@@ -105,7 +106,7 @@ open class HDFilme : MainAPI() {
             )
         }
 
-        return true
+        return links.isNotEmpty()
     }
 
     data class LoadData(
