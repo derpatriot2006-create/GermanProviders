@@ -47,7 +47,7 @@ abstract class XCineBase : MainAPI() {
     private fun Media.toSearchResponse(): SearchResponse? {
         return newAnimeSearchResponse(
             title ?: originalTitle ?: return null,
-            LinkData(id).toJson(),
+            ItemData(id).toJson(),
             TvType.TvSeries,
             false
         ) {
@@ -67,7 +67,7 @@ abstract class XCineBase : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        val id = parseJson<LinkData>(url).id
+        val id = parseJson<ItemData>(url).id
 
         val requestUrl = "$mainAPI/data/watch/?_id=$id"
         val res = app.get(requestUrl, referer = "$mainUrl/")
@@ -83,9 +83,9 @@ abstract class XCineBase : MainAPI() {
 
         return if (type == "tv") {
             val episodes = res.streams?.groupBy { it.e }?.mapNotNull { eps ->
-                val epsLink = eps.value.map { it.stream }.toJson()
+                val loadData = LoadData(eps.value.mapNotNull { it.stream }).toJson()
 
-                newEpisode(epsLink) {
+                newEpisode(loadData) {
                     this.episode = eps.key
                     this.name = eps.value.firstOrNull()?.eTitle
                 }
@@ -110,7 +110,7 @@ abstract class XCineBase : MainAPI() {
                 res.title ?: return null,
                 requestUrl,
                 TvType.Movie,
-                res.streams?.map { it.stream }?.toJson()
+                LoadData(res.streams?.mapNotNull { it.stream }.orEmpty()).toJson()
             ) {
                 this.posterUrl = getImageUrl(res.backdropPath ?: res.posterPath)
                 this.year = res.year
@@ -129,9 +129,9 @@ abstract class XCineBase : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val loadData = parseJson<List<String>>(data)
+        val loadData = parseJson<LoadData>(data)
 
-        loadData.apmap {
+        loadData.links.apmap {
             val link = fixUrlNull(it) ?: return@apmap null
             if (link.startsWith("https://dl.streamcloud")) {
                 callback.invoke(
@@ -156,8 +156,12 @@ abstract class XCineBase : MainAPI() {
         return true
     }
 
-    data class LinkData(
+    data class ItemData(
         val id: String? = null,
+    )
+
+    data class LoadData(
+        val links: List<String>
     )
 
     data class Streams(
