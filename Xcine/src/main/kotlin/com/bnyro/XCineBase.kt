@@ -47,7 +47,7 @@ abstract class XCineBase : MainAPI() {
     private fun Media.toSearchResponse(): SearchResponse? {
         return newAnimeSearchResponse(
             title ?: originalTitle ?: return null,
-            id.orEmpty(),
+            LinkData(id).toJson(),
             TvType.TvSeries,
             false
         ) {
@@ -66,9 +66,10 @@ abstract class XCineBase : MainAPI() {
         } ?: throw ErrorLoadingException("Failed to parse search response.")
     }
 
-    // passed parameter url is the ID of the movie / series
     override suspend fun load(url: String): LoadResponse? {
-        val requestUrl = "$mainAPI/data/watch/?_id=$url"
+        val id = parseJson<LinkData>(url).id
+
+        val requestUrl = "$mainAPI/data/watch/?_id=$id"
         val res = app.get(requestUrl, referer = "$mainUrl/")
             .parsedSafe<MediaDetail>() ?: throw ErrorLoadingException("Failed to get and parse $requestUrl")
         val type = if (res.tv == 1) "tv" else "movie"
@@ -154,6 +155,10 @@ abstract class XCineBase : MainAPI() {
 
         return true
     }
+
+    data class LinkData(
+        val id: String? = null,
+    )
 
     data class Streams(
         @JsonProperty("_id") val id: String? = null,
