@@ -21,6 +21,7 @@ class XCinePlugin: Plugin() {
         // All providers should be added in this manner. Please don't edit the providers list directly.
         registerMainAPI(XcineIO())
         registerMainAPI(Movie4k())
+        registerMainAPI(Streamcloud())
 
         registerExtractorAPI(Voe())
         registerExtractorAPI(FileMoonSx())
