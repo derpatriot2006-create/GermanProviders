@@ -2,6 +2,7 @@ package com.bnyro
 
 import com.lagradost.cloudstream3.extractors.DoodLaExtractor
 import com.lagradost.cloudstream3.extractors.MixDrop
+import com.lagradost.cloudstream3.extractors.StreamWishExtractor
 import com.lagradost.cloudstream3.extractors.Supervideo
 import com.lagradost.cloudstream3.extractors.Voe
 
@@ -48,4 +49,13 @@ class BigwarpIO: Supervideo() {
 class GoofyBanana: Voe() {
     override var name = "Goofy Banana"
     override var mainUrl = "https://goofy-banana.com"
+}
+
+class Mixdrp:  MixDrop() {
+    override var name = "Mixdrp"
+    override var mainUrl = "https://mixdrp.to"
+}
+
+class Luluvdo: StreamWishExtractor() {
+    override val mainUrl = "https://luluvdo.com"
 }

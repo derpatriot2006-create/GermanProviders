@@ -42,5 +42,7 @@ class XCinePlugin: Plugin() {
         registerExtractorAPI(BigwarpIO())
         registerExtractorAPI(GoofyBanana())
         registerExtractorAPI(Lulustream2())
+        registerExtractorAPI(Mixdrp())
+        registerExtractorAPI(Luluvdo())
     }
 }
