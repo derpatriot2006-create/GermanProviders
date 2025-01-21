@@ -30,11 +30,11 @@ open class HDFilme : MainAPI() {
     private fun Element.toSearchResponse(): SearchResponse {
         val title = select("a.movie-title").text()
         val url = select("a.movie-title").attr("href")
-        val posterPath = select("figure img").attr("src")
+        val posterUrl = selectFirst("figure img")?.getImageUrl()
         val metaList = select("div.meta > span")
 
         return newMovieSearchResponse(title, type = TvType.Movie, url = url).apply {
-            this.posterUrl = fixUrl(posterPath)
+            this.posterUrl = posterUrl
             this.year = metaList.firstOrNull()?.text()?.toIntOrNull()
         }
     }
@@ -47,15 +47,20 @@ open class HDFilme : MainAPI() {
         return doc.select("#dle-content div.item").map { it.toSearchResponse() }
     }
 
+    private fun Element.getImageUrl(): String {
+        return fixUrl(attr("data-src").ifEmpty { attr("src") })
+    }
+
     override suspend fun load(url: String): LoadResponse? {
         val doc = app.get(url).document
 
-        val details = doc.select("section.detail")
-        val title = details.select(".info h1").text()
-        val posterPath = details.select("figure img").attr("src")
+        val details = doc.selectFirst("section.detail") ?: return null
+
+        val title = details.select(".info h1").text().replace("hdfilme", "").trim()
+        val posterUrl = details.selectFirst("figure img")?.getImageUrl()
         val meta = details.select("h1 + div span:not(.divider)")
-        val description = doc.select("section:has(> h2) > div > p").firstOrNull()?.text()
-        val actors = details.select("li > span > a").map { it.text() }
+        val description = doc.selectFirst("section:has(> h2) > div > p")?.text()
+        val actors = details.select("li > a[href^='$mainUrl/xfsearch/actors/']").map { it.text() }
 
         val streamsJsUrl = doc.select("script[src^='https://meinecloud.click/ddl']").attr("src")
         val streamsJs = app.get(streamsJsUrl).text
@@ -68,7 +73,7 @@ open class HDFilme : MainAPI() {
                 url = it.attr("href"),
                 type = TvType.Movie
             ) {
-                this.posterUrl = fixUrl(it.select("figure img").attr("src"))
+                this.posterUrl = it.selectFirst("figure img")?.getImageUrl()
             }
         }
 
@@ -78,10 +83,12 @@ open class HDFilme : MainAPI() {
             TvType.Movie,
             LoadData(streams).toJson()
         ) {
-            this.posterUrl = fixUrl(posterPath)
-            this.year = meta.getOrNull(3)?.text()?.toIntOrNull()
+            this.posterUrl = posterUrl
+            this.year = meta.getOrNull(2)?.text()?.toIntOrNull()
+            this.duration = meta.getOrNull(3)?.text()
+                ?.replace("min", "", ignoreCase = true)?.trim()?.toIntOrNull()
             this.plot = description
-            this.tags = listOfNotNull(meta.firstOrNull()?.text())
+            this.tags = meta.firstOrNull()?.select("a")?.map { it.text() }
             this.actors = actors.map { ActorData(Actor(it)) }
             this.recommendations = related
         }
