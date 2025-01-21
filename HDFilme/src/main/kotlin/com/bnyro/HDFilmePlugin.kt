@@ -5,6 +5,7 @@ import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import android.content.Context
 import com.lagradost.cloudstream3.extractors.DoodstreamCom
+import com.lagradost.cloudstream3.extractors.Supervideo
 
 @CloudstreamPlugin
 class HDFilmePlugin: Plugin() {
@@ -14,6 +15,7 @@ class HDFilmePlugin: Plugin() {
 
         registerExtractorAPI(DoodstreamCom())
         registerExtractorAPI(SupervideoCom())
+        registerExtractorAPI(Supervideo())
         registerExtractorAPI(DroploadIo())
     }
 }
