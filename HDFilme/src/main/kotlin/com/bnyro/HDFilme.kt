@@ -12,6 +12,7 @@ open class HDFilme : MainAPI() {
     override var lang = "de"
 
     override val hasMainPage = true
+    override val hasQuickSearch = true
     override val supportedTypes = setOf(TvType.Movie)
     override var mainUrl = "https://hdfilme.my"
 
@@ -21,7 +22,9 @@ open class HDFilme : MainAPI() {
     ): HomePageResponse {
         val doc = app.get(mainUrl).document
 
-        return newHomePageResponse(request, doc.select("#dle-content div.item").map { it.toSearchResponse() })
+        return newHomePageResponse(
+            request,
+            doc.select("#dle-content div.item").map { it.toSearchResponse() })
     }
 
     private fun Element.toSearchResponse(): SearchResponse {
@@ -36,6 +39,8 @@ open class HDFilme : MainAPI() {
         }
     }
 
+    override suspend fun quickSearch(query: String) = search(query)
+
     override suspend fun search(query: String): List<SearchResponse> {
         val doc = app.get("$mainUrl/?story=$query&do=search&subaction=search").document
 
@@ -45,7 +50,7 @@ open class HDFilme : MainAPI() {
     override suspend fun load(url: String): LoadResponse? {
         val doc = app.get(url).document
 
-        val details = doc.select("section.details")
+        val details = doc.select("section.detail")
         val title = details.select(".info h1").text()
         val posterPath = details.select("figure img").attr("src")
         val meta = details.select("h1 + div span:not(.divider)")
