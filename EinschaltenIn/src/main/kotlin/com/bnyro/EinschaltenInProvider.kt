@@ -36,7 +36,8 @@ open class EinschaltenInProvider : MainAPI() {
         return newHomePageResponse(HomePageList("Popular", toSearchResponses(response)))
     }
 
-    private fun getImageUrl(file: String): String {
+    private fun getImageUrl(fileWithLeadingSlash: String): String {
+        val file = fileWithLeadingSlash.trimStart('/')
         return "$mainUrl/image/poster/$file"
     }
 
@@ -84,7 +85,7 @@ open class EinschaltenInProvider : MainAPI() {
     override suspend fun quickSearch(query: String): List<SearchResponse> = search(query)
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val response = app.get("${mainUrl}/__data.json?query=$query")
+        val response = app.get("${mainUrl}/search/__data.json?query=$query")
             .parsedSafe<Response>() ?: throw ErrorLoadingException()
 
         return toSearchResponses(response)
