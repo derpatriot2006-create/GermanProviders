@@ -77,7 +77,7 @@ open class EinschaltenInProvider : MainAPI() {
                 type = TvType.Movie
             ) {
                 this.posterUrl = getImageUrl(it.posterPath)
-                this.year = it.releaseDate.substring(0, 4).toIntOrNull()
+                this.year = it.releaseDate.take(4).toIntOrNull()
             }
         }
     }
@@ -106,7 +106,7 @@ open class EinschaltenInProvider : MainAPI() {
             this.posterUrl = getImageUrl(movie.posterPath)
             this.plot = movie.overview
             this.duration = movie.runtime
-            this.year = movie.releaseDate.substring(0, 4).toIntOrNull()
+            this.year = movie.releaseDate.take(4).toIntOrNull()
         }
     }
 
