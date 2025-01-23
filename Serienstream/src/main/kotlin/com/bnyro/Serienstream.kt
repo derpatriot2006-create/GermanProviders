@@ -120,36 +120,19 @@ open class Serienstream : MainAPI() {
             val redirectUrl = app.get(fixUrl(it.second)).url
             val lang = it.first.getLanguage(document)
             val name = "${it.third} [${lang}]"
-            if (it.third == "VOE") {
-                Voe().getUrl(redirectUrl, data, subtitleCallback) { link ->
-                    callback.invoke(
-                        ExtractorLink(
-                            name,
-                            name,
-                            link.url,
-                            link.referer,
-                            link.quality,
-                            link.type,
-                            link.headers,
-                            link.extractorData
-                        )
-                    )
-                }
-            } else {
-                loadExtractor(redirectUrl, data, subtitleCallback) { link ->
-                    callback.invoke(
-                        ExtractorLink(
-                            name,
-                            name,
-                            link.url,
-                            link.referer,
-                            link.quality,
-                            link.type,
-                            link.headers,
-                            link.extractorData
-                        )
-                    )
-                }
+
+            loadExtractor(redirectUrl, data, subtitleCallback) { link ->
+                val linkWithFixedName = ExtractorLink(
+                    name,
+                    name,
+                    link.url,
+                    link.referer,
+                    link.quality,
+                    link.type,
+                    link.headers,
+                    link.extractorData
+                )
+                callback.invoke(linkWithFixedName)
             }
         }
 
