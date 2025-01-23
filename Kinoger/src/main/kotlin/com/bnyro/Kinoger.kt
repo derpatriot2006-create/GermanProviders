@@ -1,13 +1,13 @@
 package com.bnyro
 
 import com.lagradost.cloudstream3.*
-import com.lagradost.cloudstream3.extractors.Chillx
 import com.lagradost.cloudstream3.utils.AppUtils
+import com.lagradost.cloudstream3.utils.AppUtils.parseJson
+import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.ExtractorLinkType
-import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
 import org.jsoup.nodes.Element
+
 
 class Kinoger : MainAPI() {
     override var name = "Kinoger"
@@ -17,16 +17,16 @@ class Kinoger : MainAPI() {
     override val supportedTypes = setOf(TvType.TvSeries, TvType.Movie)
 
     override val mainPage = mainPageOf(
-            "" to "Alle Filme",
-            "stream/action" to "Action",
-            "stream/fantasy" to "Fantasy",
-            "stream/drama" to "Drama",
-            "stream/mystery" to "Mystery",
-            "stream/romance" to "Romance",
-            "stream/animation" to "Animation",
-            "stream/horror" to "Horror",
-            "stream/familie" to "Familie",
-            "stream/komdie" to "Komdie",
+        "" to "Alle Filme",
+        "stream/action" to "Action",
+        "stream/fantasy" to "Fantasy",
+        "stream/drama" to "Drama",
+        "stream/mystery" to "Mystery",
+        "stream/romance" to "Romance",
+        "stream/animation" to "Animation",
+        "stream/horror" to "Horror",
+        "stream/familie" to "Familie",
+        "stream/komdie" to "Komdie",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
@@ -50,7 +50,8 @@ class Kinoger : MainAPI() {
         val title = this.selectFirst("a")?.text() ?: this.selectFirst("img")?.attr("alt")
         ?: this.selectFirst("a")?.attr("title") ?: return null
         val posterUrl = fixUrlNull(
-            (this.selectFirst("div.content_text img") ?: this.nextElementSibling()?.selectFirst("div.content_text img") ?: this.selectFirst("img"))?.getImageAttr()
+            (this.selectFirst("div.content_text img") ?: this.nextElementSibling()
+                ?.selectFirst("div.content_text img") ?: this.selectFirst("img"))?.getImageAttr()
         )
 
         return newTvSeriesSearchResponse(title, href, TvType.AsianDrama) {
@@ -60,7 +61,7 @@ class Kinoger : MainAPI() {
 
     override suspend fun search(query: String): List<SearchResponse> {
         return app.get("$mainUrl/?do=search&subaction=search&titleonly=3&story=$query&x=0&y=0&submit=submit").document.select(
-                "div#dle-content div.titlecontrol"
+            "div#dle-content div.titlecontrol"
         ).mapNotNull { it.toSearchResult() }
     }
 
@@ -76,21 +77,29 @@ class Kinoger : MainAPI() {
             it.toSearchResult()
         }
 
-        val script = document.selectFirst("script:containsData(kinoger.ru)")?.data()
-        val data = script?.substringAfter("[")?.substringBeforeLast("]")?.replace("\'", "\"")
-        val json = AppUtils.tryParseJson<List<List<String>>>("[$data]")
+        val scripts = document.select("div[id^=container-video] script")
+            .map { it.data() }
+        val links = scripts
+            .map { script ->
+                val data = script.substringAfter("[").substringBeforeLast("]")
+                    .replace("\'", "\"")
+                AppUtils.tryParseJson<List<List<String>>>("[$data]").orEmpty()
+            }.let { transpose(it) }.map { transpose(it) }
 
-        val type = if(script?.substringBeforeLast(")")?.substringAfterLast(",") == "0.2") TvType.Movie else TvType.TvSeries
+        val type = if (scripts.isNotEmpty() && scripts.first().substringBeforeLast(")")
+                .substringAfterLast(",") == "0.2"
+        ) TvType.Movie else TvType.TvSeries
 
-        val episodes = json?.flatMapIndexed { season: Int, iframes: List<String> ->
-            iframes.mapIndexed { episode, iframe ->
-                Episode(
-                    iframe.trim(),
-                    season = season + 1,
-                    episode = episode + 1
-                )
+        val episodes = links.flatMapIndexed { season: Int, episodeList: List<List<String>> ->
+            episodeList.mapIndexed { episode, iframes ->
+                newEpisode(
+                    LinkData(iframes).toJson(),
+                ).apply {
+                    this.season = season + 1
+                    this.episode = episode + 1
+                }
             }
-        } ?: emptyList()
+        }
 
         return newTvSeriesLoadResponse(title, url, type, episodes) {
             this.posterUrl = poster
@@ -102,49 +111,43 @@ class Kinoger : MainAPI() {
     }
 
     override suspend fun loadLinks(
-            data: String,
-            isCasting: Boolean,
-            subtitleCallback: (SubtitleFile) -> Unit,
-            callback: (ExtractorLink) -> Unit
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
     ): Boolean {
-        loadCustomExtractor(data, "$mainUrl/", subtitleCallback, callback)
+        val links = parseJson<LinkData>(data).links
+
+        links.apmap { link ->
+            loadExtractor(link, "$mainUrl/", subtitleCallback, callback)
+        }
+
         return true
     }
 
-    private suspend fun loadCustomExtractor(
-            url: String,
-            referer: String? = null,
-            subtitleCallback: (SubtitleFile) -> Unit,
-            callback: (ExtractorLink) -> Unit,
-            quality: Int? = null,
-    ) {
-        loadExtractor(url, referer, subtitleCallback) { link ->
-            if(link.quality == Qualities.Unknown.value) {
-                callback.invoke(
-                        ExtractorLink(
-                                link.source,
-                                link.name,
-                                link.url,
-                                link.referer,
-                                when (link.type) {
-                                    ExtractorLinkType.M3U8 -> link.quality
-                                    else -> quality ?: link.quality
-                                },
-                                link.type,
-                                link.headers,
-                                link.extractorData
-                        )
-                )
-            }
-        }
-    }
-
-    private fun Element.getImageAttr(): String? {
+    private fun Element.getImageAttr(): String {
         return when {
             this.hasAttr("data-src") -> this.attr("data-src")
             this.hasAttr("data-lazy-src") -> this.attr("data-lazy-src")
             this.hasAttr("srcset") -> this.attr("srcset").substringBefore(" ")
             else -> this.attr("src")
         }
+    }
+
+    data class LinkData(
+        val links: List<String>
+    )
+
+    private fun <T> transpose(table: List<List<T>>): List<List<T>> {
+        val ret: MutableList<List<T>> = ArrayList()
+        val N = table[0].size
+        for (i in 0 until N) {
+            val col: MutableList<T> = ArrayList()
+            for (row in table) {
+                col.add(row[i])
+            }
+            ret.add(col)
+        }
+        return ret
     }
 }
