@@ -16,6 +16,7 @@ import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.Qualities
 
 
 open class ARD : MainAPI() {
@@ -46,13 +47,13 @@ open class ARD : MainAPI() {
         val response = app.get("${mainUrl}/page-gateway/widgets/ard/editorials/${request.data}?pageSize=${PAGE_SIZE}")
             .parsed<Editorial>()
 
-        return newHomePageResponse(request.name, response.teasers.map { it.toSearchResponse() })
+        return newHomePageResponse(request.name, response.teasers.mapNotNull { it.toSearchResponse() })
     }
 
-    private fun Teaser.toSearchResponse(): SearchResponse {
+    private fun Teaser.toSearchResponse(): SearchResponse? {
         return newMovieSearchResponse(
-            name = this.mediumTitle,
-            url = EpisodeInfo(this.id).toJson(),
+            name = this.mediumTitle ?: this.shortTitle ?: return null,
+            url = EpisodeInfo(this.links?.target?.id ?: this.id).toJson(),
             type = TvType.Movie,
         ) {
             this.posterUrl =
@@ -68,13 +69,13 @@ open class ARD : MainAPI() {
             app.get("$mainUrl/search-system/search/vods/ard?query=${query}&pageSize=${PAGE_SIZE}&platform=MEDIA_THEK&sortingCriteria=SCORE_DESC")
                 .parsed<Search>()
 
-        return response.teasers.map { it.toSearchResponse() }
+        return response.teasers.mapNotNull { it.toSearchResponse() }
     }
 
     override suspend fun load(url: String): LoadResponse? {
         val episodeId = parseJson<EpisodeInfo>(url).id
 
-        val response = app.get("${mainUrl}page-gateway/pages/ard/item/${episodeId}")
+        val response = app.get("${mainUrl}/page-gateway/pages/ard/item/${episodeId}?embedded=false&mcV6=true")
             .parsed<DetailsResponse>()
 
         val streamInfo = response.widgets.firstOrNull { it.type == "player_ondemand" }
@@ -108,7 +109,7 @@ open class ARD : MainAPI() {
                     ExtractorLink(
                         name = "ARD ${media.forcedLabel} (${stream.kind})",
                         source = "ARD",
-                        quality = media.maxVresolutionPx.toInt(),
+                        quality = media.maxVresolutionPx?.toInt() ?: Qualities.Unknown.value,
                         url = media.url,
                         referer = mainUrl,
                         isM3u8 = media.url.endsWith("m3u8")
@@ -120,7 +121,7 @@ open class ARD : MainAPI() {
         for (subtitle in embedded.subtitles) {
             for (source in subtitle.sources) {
                 subtitleCallback.invoke(
-                    SubtitleFile(lang = subtitle.languageCode, url = source.url)
+                    SubtitleFile(lang = subtitle.languageCode.orEmpty(), url = source.url ?: continue)
                 )
             }
         }
@@ -132,126 +133,63 @@ open class ARD : MainAPI() {
 
     data class Search(
         val id: String,
-        val isChildContent: Boolean,
-        val pagination: Pagination,
-        val personalized: Boolean,
-        val links: Links,
-        val size: String,
-        val teasers: List<Teaser>,
+        val teasers: List<Teaser> = emptyList(),
         val title: String,
-        val titleVisible: Boolean,
-        val type: String,
-    )
-
-    data class Links(
-        val self: Self,
-    )
-
-    data class Self(
-        val partner: String,
-        val id: String,
-        val urlId: String,
-        val title: String,
-        val href: String,
         val type: String,
     )
 
     data class Teaser(
-        val availableTo: String,
-        val binaryFeatures: List<String>,
+        val availableTo: String?,
         val broadcastedOn: String?,
-        val coreAssetType: String,
-        val duration: Double,
+        val duration: Double?,
         val id: String,
-        val images: Map<String, Image>,
-        val isChildContent: Boolean,
-        val isFamilyFriendly: Boolean,
-        val longTitle: String,
-        val maturityContentRating: String,
-        val mediumTitle: String,
-        val personalized: Boolean,
-        val playtime: Any?,
-        val links: Links,
-        val shortTitle: String,
-        val show: Show,
-        val subtitled: Boolean,
-        val titleVisible: Boolean,
-        val type: String,
+        val images: Map<String, Image> = emptyMap(),
+        val longTitle: String?,
+        val mediumTitle: String?,
+        val shortTitle: String?,
+        val show: Show?,
+        val type: String?,
+        val links: Links?
+    )
+
+    data class Links(
+        val self: Link?,
+        val target: Link?
+    )
+
+    data class Link(
+        val id: String,
+        val title: String,
     )
 
     data class Show(
         val id: String,
-        val coremediaId: Double,
         val title: String,
-        val publisher: Publisher,
-        val self: Self,
-        val images: Map<String, Image>,
-        val shortSynopsis: String,
-        val synopsis: String,
-        val longSynopsis: String,
-        val modificationDate: Any?,
-        val assetSource: Any?,
-        val isChildContent: Boolean,
-        val isFamilyFriendly: Boolean,
-        val targetAudienceAgeMin: Any?,
-        val targetAudienceAgeMax: Any?,
-        val categories: Any?,
-        val categoryIds: Any?,
-        val coreAssetType: String,
-        val coreId: String,
-        val groupingType: String,
-        val homepage: Homepage,
-        val hasSeasons: Boolean,
-        val availableSeasons: Any?,
-        val binaryFeatures: List<String>,
-    )
-
-    data class Publisher(
-        val name: String,
-        val logo: Image,
-        val publisherType: String,
-        val partner: String,
-        val id: String,
-        val coreId: String,
-    )
-
-    data class Homepage(
-        val id: Any?,
-        val title: String,
-        val href: String,
-        val type: Any?,
+        val shortSynopsis: String?,
+        val synopsis: String?,
+        val longSynopsis: String?,
+        val coreId: String?,
+        val groupingType: String?,
+        val hasSeasons: Boolean?,
     )
 
     data class DetailsResponse(
-        val coreAssetType: String,
-        val fskRating: String,
-        val id: String,
-        val isChildContent: Boolean,
-        val isFamilyFriendly: Boolean,
-        val personalized: Boolean,
-        val links: Links,
-        val targetAudienceAgeMax: Any?,
-        val targetAudienceAgeMin: Any?,
+        val fskRating: String?,
+        val id: String?,
         val title: String,
-        val widgets: List<Widget>,
+        val widgets: List<Widget> = emptyList(),
     )
 
     data class Widget(
         val availableTo: String?,
-        val binaryFeatures: List<String>?,
         val blockedByFsk: Boolean?,
         val broadcastedOn: String?,
         val embeddable: Boolean?,
         val geoblocked: Boolean?,
         val id: String,
         val image: Image?,
-        val isChildContent: Boolean,
         val maturityContentRating: String?,
         val mediaCollection: MediaCollection?,
-        val pagination: Pagination?,
-        val personalized: Boolean,
-        val playerConfig: Any?,
-        val links: Links,
         val show: ShowShort?,
         val synopsis: String?,
         val title: String,
@@ -261,16 +199,13 @@ open class ARD : MainAPI() {
         val compilationType: String?,
         val size: String?,
         val swipeable: Boolean?,
-        val teasers: List<Any?>?,
         val titleVisible: Boolean?,
         val userVisibility: String?,
     )
 
     data class Image(
-        val alt: String,
-        val producerName: String,
-        val src: String,
-        val title: String,
+        val src: String?,
+        val title: String?,
     )
 
     data class MediaCollection(
@@ -279,90 +214,65 @@ open class ARD : MainAPI() {
     )
 
     data class Embedded(
-        val id: String,
-        val isGeoBlocked: Boolean,
-        val meta: Meta,
-        val pluginData: PluginData,
-        val streams: List<Stream>,
-        val subtitles: List<Subtitle>,
+        val id: String?,
+        val isGeoBlocked: Boolean = false,
+        val meta: Meta?,
+        val streams: List<Stream> = emptyList(),
+        val subtitles: List<Subtitle> = emptyList(),
     )
 
     data class Meta(
-        val availableToDateTime: String,
-        val broadcastedOnDateTime: String,
-        val clipSourceName: String,
-        val durationSeconds: Long,
-        val images: List<Image>,
-        val seriesTitle: String,
-        val synopsis: String,
-        val title: String,
-    )
-
-    data class PluginData(
-        @JsonProperty("recommendation@all")
-        val recommendationAll: RecommendationAll,
-    )
-
-    data class RecommendationAll(
-        val isAutoplay: Boolean,
-        val timerSeconds: Long,
-        val url: String,
+        val availableToDateTime: String?,
+        val broadcastedOnDateTime: String?,
+        val clipSourceName: String?,
+        val durationSeconds: Long?,
+        val seriesTitle: String?,
+        val synopsis: String?,
+        val title: String?,
     )
 
     data class Stream(
-        val kind: String,
-        val kindName: String,
-        val media: List<Medum>,
-        val videoLanguageCode: String,
+        val kind: String?,
+        val kindName: String?,
+        val media: List<Medum> = emptyList(),
+        val videoLanguageCode: String?,
     )
 
     data class Medum(
-        val aspectRatio: String,
-        val audios: List<Audio>,
-        val forcedLabel: String,
-        val hasEmbeddedSubtitles: Boolean,
-        val isAdaptiveQualitySelectable: Boolean,
-        val isHighDynamicRange: Boolean,
+        val aspectRatio: String?,
+        val audios: List<Audio> = emptyList(),
+        val forcedLabel: String?,
+        val isAdaptiveQualitySelectable: Boolean = false,
+        val isHighDynamicRange: Boolean = false,
         @JsonProperty("maxHResolutionPx")
-        val maxHresolutionPx: Long,
+        val maxHresolutionPx: Long?,
         @JsonProperty("maxVResolutionPx")
-        val maxVresolutionPx: Long,
-        val mimeType: String,
-        val subtitles: List<Any?>,
+        val maxVresolutionPx: Long?,
+        val mimeType: String? = null,
         val url: String,
-        val videoCodec: String,
+        val videoCodec: String? = null,
     )
 
     data class Audio(
-        val kind: String,
-        val languageCode: String,
+        val kind: String?,
+        val languageCode: String?,
     )
 
     data class Subtitle(
-        val kind: String,
-        val languageCode: String,
-        val sources: List<Source>,
+        val kind: String?,
+        val languageCode: String?,
+        val sources: List<Source> = emptyList(),
     )
 
     data class Source(
-        val kind: String,
-        val url: String,
-    )
-
-    data class Pagination(
-        val pageNumber: Long,
-        val pageSize: Long,
-        val totalElements: Any?,
+        val kind: String?,
+        val url: String?,
     )
 
     data class ShowShort(
         val id: String,
         val title: String,
-        val image: Image,
-        val availableSeasons: Any?,
-        val binaryFeatures: List<String>,
-        val isChildContent: Boolean,
-        val coreAssetType: String,
+        val image: Image?,
     )
 
     data class Editorial(
@@ -370,17 +280,10 @@ open class ARD : MainAPI() {
         val aZcontent: Boolean,
         val compilationType: String,
         val id: String,
-        val isChildContent: Boolean,
-        val pagination: Pagination,
-        val personalized: Boolean,
-        val links: Links,
-        val size: String,
-        val swipeable: Boolean,
-        val teasers: List<Teaser>,
         val title: String,
-        val titleVisible: Boolean,
-        val type: String,
-        val userVisibility: String,
+        val size: String?,
+        val teasers: List<Teaser> = emptyList(),
+        val type: String?,
     )
 
     companion object {
