@@ -39,9 +39,9 @@ abstract class XCineBase : MainAPI() {
     ): HomePageResponse {
         val home =
             app.get("$mainAPI/${request.data}&page=$page", referer = "$mainUrl/")
-                .parsedSafe<MediaResponse>()?.movies?.mapNotNull { res ->
+                .parsed<MediaResponse>().movies?.mapNotNull { res ->
                     res.toSearchResponse()
-                } ?: throw ErrorLoadingException("Failed to parse Homepage.")
+                } ?: throw ErrorLoadingException("No movies in response.")
         return newHomePageResponse(request.name, home)
     }
 
@@ -61,8 +61,10 @@ abstract class XCineBase : MainAPI() {
     override suspend fun quickSearch(query: String): List<SearchResponse> = search(query)
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val res = app.get("$mainAPI/data/browse/?lang=2&keyword=$query", referer = "$mainUrl/").text
-        return tryParseJson<MediaResponse>(res)?.movies?.mapNotNull {
+        val res = app.get("$mainAPI/data/browse/?lang=2&keyword=$query", referer = "$mainUrl/")
+            .parsed<MediaResponse>()
+
+        return res.movies?.mapNotNull {
             it.toSearchResponse()
         } ?: throw ErrorLoadingException("Failed to parse search response.")
     }
@@ -72,7 +74,7 @@ abstract class XCineBase : MainAPI() {
 
         val requestUrl = "$mainAPI/data/watch/?_id=$id"
         val res = app.get(requestUrl, referer = "$mainUrl/")
-            .parsedSafe<MediaDetail>() ?: throw ErrorLoadingException("Failed to get and parse $requestUrl")
+            .parsed<MediaDetail>()
         val type = if (res.tv == 1) "tv" else "movie"
 
         val recommendations =

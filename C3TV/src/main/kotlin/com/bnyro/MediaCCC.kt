@@ -28,7 +28,7 @@ open class MediaCCC : MainAPI() {
         request: MainPageRequest
     ): HomePageResponse {
         val response = app.get("${mainUrl}/${request.data}")
-            .parsedSafe<EventsResponse>() ?: throw ErrorLoadingException()
+            .parsed<EventsResponse>()
 
         return newHomePageResponse(request.name, response.events.map { it.toSearchResponse() })
     }
@@ -47,7 +47,7 @@ open class MediaCCC : MainAPI() {
 
     override suspend fun search(query: String): List<SearchResponse> {
         val response = app.get("${mainUrl}/public/events/search?q=${query}")
-            .parsedSafe<EventsResponse>() ?: throw ErrorLoadingException()
+            .parsed<EventsResponse>()
 
         return response.events.map { it.toSearchResponse() }
     }
@@ -56,7 +56,7 @@ open class MediaCCC : MainAPI() {
         val guid = parseJson<Link>(url).guid
 
         val response = app.get("${mainUrl}/public/events/${guid}")
-            .parsedSafe<Event>() ?: throw ErrorLoadingException()
+            .parsed<Event>()
 
         return newMovieLoadResponse(
             name = response.title,

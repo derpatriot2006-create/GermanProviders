@@ -31,7 +31,7 @@ open class EinschaltenInProvider : MainAPI() {
         request: MainPageRequest
     ): HomePageResponse {
         val response = app.get("${mainUrl}/__data.json")
-            .parsedSafe<Response>() ?: throw ErrorLoadingException()
+            .parsed<Response>()
 
         return newHomePageResponse(HomePageList("Popular", toSearchResponses(response)))
     }
@@ -86,14 +86,14 @@ open class EinschaltenInProvider : MainAPI() {
 
     override suspend fun search(query: String): List<SearchResponse> {
         val response = app.get("${mainUrl}/search/__data.json?query=$query")
-            .parsedSafe<Response>() ?: throw ErrorLoadingException()
+            .parsed<Response>()
 
         return toSearchResponses(response)
     }
 
     override suspend fun load(url: String): LoadResponse? {
         val response = app.get("$url/__data.json")
-            .parsedSafe<Response>() ?: throw ErrorLoadingException()
+            .parsed<Response>()
 
         val movie = parseMovieItems(response).firstOrNull() ?: return null
 
@@ -118,7 +118,7 @@ open class EinschaltenInProvider : MainAPI() {
     ): Boolean {
         val id = data.split("/").last()
         val source = app.get("https://einschalten.in/api/movies/$id/watch")
-            .parsedSafe<StreamSource>() ?: throw ErrorLoadingException("Failed to extract link!")
+            .parsed<StreamSource>()
 
         loadExtractor(source.streamUrl, referer = "$mainUrl/", subtitleCallback, callback)
 

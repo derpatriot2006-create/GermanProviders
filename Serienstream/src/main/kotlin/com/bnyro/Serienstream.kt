@@ -1,9 +1,24 @@
 package com.bnyro
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.AnimeSearchResponse
+import com.lagradost.cloudstream3.HomePageList
+import com.lagradost.cloudstream3.HomePageResponse
+import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
-import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
+import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.apmap
+import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.fixUrl
+import com.lagradost.cloudstream3.fixUrlNull
+import com.lagradost.cloudstream3.newAnimeSearchResponse
+import com.lagradost.cloudstream3.newEpisode
+import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import org.jsoup.nodes.Document
@@ -35,7 +50,7 @@ open class Serienstream : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val json = app.post(
+        val resp = app.post(
             "$mainUrl/ajax/search",
             data = mapOf("keyword" to query),
             referer = "$mainUrl/search",
@@ -43,19 +58,18 @@ open class Serienstream : MainAPI() {
                 "x-requested-with" to "XMLHttpRequest"
             )
         )
-        return tryParseJson<List<AnimeSearch>>(json.text)?.filter {
+        return resp.parsed<List<AnimeSearch>>().filter {
             !it.link.contains("episode-") && it.link.contains(
                 "/stream"
             )
-        }?.map {
+        }.map {
             newAnimeSearchResponse(
                 it.title?.replace(Regex("</?em>"), "") ?: "",
                 fixUrl(it.link),
                 TvType.Anime
             ) {
             }
-        } ?: throw ErrorLoadingException()
-
+        }
     }
 
     override suspend fun load(url: String): LoadResponse? {

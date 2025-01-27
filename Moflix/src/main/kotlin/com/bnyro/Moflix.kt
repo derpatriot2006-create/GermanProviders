@@ -47,7 +47,7 @@ open class Moflix : MainAPI() {
         val home = app.get(
             "$mainUrl/api/v1/channel/${query.first()}?returnContentOnly=true&restriction=&order=${query.last()}&paginate=simple&perPage=50&query=&page=$page",
             referer = "$mainUrl/"
-        ).parsedSafe<Responses>()?.pagination?.data?.mapNotNull { it.toSearchResponse() }
+        ).parsed<Responses>().pagination?.data?.mapNotNull { it.toSearchResponse() }
             ?: emptyList()
 
         return newHomePageResponse(request.name, home)
@@ -68,45 +68,45 @@ open class Moflix : MainAPI() {
 
     override suspend fun search(query: String): List<SearchResponse>? {
         return app.get("$mainUrl/api/v1/search/$query?loader=searchPage", referer = "$mainUrl/")
-            .parsedSafe<Responses>()?.results?.mapNotNull { it.toSearchResponse() }
+            .parsed<Responses>().results?.mapNotNull { it.toSearchResponse() }
     }
 
     override suspend fun load(url: String): LoadResponse {
         val res = app.get(
             "$mainUrl/api/v1/titles/${url.fixId()}?loader=titlePage",
             referer = "$mainUrl/"
-        ).parsedSafe<Responses>()
+        ).parsed<Responses>()
 
-        val uri = Jsoup.parse(res?.seo.toString()).selectFirst("link[rel=canonical]")?.attr("href")
-        val id = res?.title?.id
-        val title = res?.title?.name ?: ""
-        val poster = res?.title?.poster
-        val backdrop = res?.title?.backdrop
-        val tags = res?.title?.keywords?.mapNotNull { it.displayName }
-        val year = res?.title?.year
-        val isSeries = res?.title?.isSeries
-        val certification = res?.title?.certification
-        val duration = res?.title?.runtime
+        val uri = Jsoup.parse(res.seo.toString()).selectFirst("link[rel=canonical]")?.attr("href")
+        val id = res.title?.id
+        val title = res.title?.name ?: ""
+        val poster = res.title?.poster
+        val backdrop = res.title?.backdrop
+        val tags = res.title?.keywords?.mapNotNull { it.displayName }
+        val year = res.title?.year
+        val isSeries = res.title?.isSeries
+        val certification = res.title?.certification
+        val duration = res.title?.runtime
         val type = getType(isSeries)
-        val description = res?.title?.description
-        val trailers = res?.title?.videos?.filter { it.category.equals("trailer", true) }
+        val description = res.title?.description
+        val trailers = res.title?.videos?.filter { it.category.equals("trailer", true) }
             ?.mapNotNull { it.src }
-        val rating = "${res?.title?.rating}".toRatingInt()
-        val actors = res?.credits?.actors?.mapNotNull {
+        val rating = "${res.title?.rating}".toRatingInt()
+        val actors = res.credits?.actors?.mapNotNull {
             ActorData(
                 Actor(it.name ?: return@mapNotNull null, it.poster),
                 roleString = it.pivot?.character
             )
         }
         val recommendations = app.get("$mainUrl/api/v1/titles/$id/related", referer = "$mainUrl/")
-            .parsedSafe<Responses>()?.titles?.mapNotNull { it.toSearchResponse() }
+            .parsed<Responses>().titles?.mapNotNull { it.toSearchResponse() }
 
         return if (type == TvType.TvSeries) {
-            val episodes = res?.seasons?.data?.mapNotNull { season ->
+            val episodes = res.seasons?.data?.mapNotNull { season ->
                 app.get(
                     "$mainUrl/api/v1/titles/${res.title?.id}/seasons/${season.number}?loader=seasonPage",
                     referer = "$mainUrl/"
-                ).parsedSafe<Responses>()?.episodes?.data?.map { episode ->
+                ).parsed<Responses>().episodes?.data?.map { episode ->
                     newEpisode(
                         LoadData(
                             id,
@@ -131,7 +131,7 @@ open class Moflix : MainAPI() {
                 this.posterUrl = poster
                 this.backgroundPosterUrl = backdrop
                 this.year = year
-                this.showStatus = getStatus(res?.title?.status)
+                this.showStatus = getStatus(res.title?.status)
                 this.plot = description
                 this.tags = tags
                 this.rating = rating
@@ -140,11 +140,11 @@ open class Moflix : MainAPI() {
                 this.recommendations = recommendations
                 this.contentRating = certification
                 addTrailer(trailers)
-                addImdbId(res?.title?.imdbId)
-                addTMDbId(res?.title?.tmdbId)
+                addImdbId(res.title?.imdbId)
+                addTMDbId(res.title?.tmdbId)
             }
         } else {
-            val urls = res?.title?.videos?.filter { it.category.equals("full", true) }
+            val urls = res.title?.videos?.filter { it.category.equals("full", true) }
 
             newMovieLoadResponse(
                 title,
@@ -155,7 +155,7 @@ open class Moflix : MainAPI() {
                 this.posterUrl = poster
                 this.backgroundPosterUrl = backdrop
                 this.year = year
-                this.comingSoon = res?.title?.status.equals("upcoming", true)
+                this.comingSoon = res.title?.status.equals("upcoming", true)
                 this.plot = description
                 this.tags = tags
                 this.rating = rating
@@ -164,8 +164,8 @@ open class Moflix : MainAPI() {
                 this.recommendations = recommendations
                 this.contentRating = certification
                 addTrailer(trailers)
-                addImdbId(res?.title?.imdbId)
-                addTMDbId(res?.title?.tmdbId)
+                addImdbId(res.title?.imdbId)
+                addTMDbId(res.title?.tmdbId)
             }
         }
     }
@@ -183,7 +183,7 @@ open class Moflix : MainAPI() {
             app.get(
                 "$mainUrl/api/v1/titles/${json.id}/seasons/${json.season}/episodes/${json.episode}?loader=episodePage",
                 referer = "$mainUrl/"
-            ).parsedSafe<Episodes>()?.episode?.videos?.filter { it.category.equals("full", true) }
+            ).parsed<Episodes>().episode?.videos?.filter { it.category.equals("full", true) }
         } else {
             json.urls
         }
