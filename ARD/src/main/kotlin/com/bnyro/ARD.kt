@@ -33,7 +33,7 @@ open class ARD : MainAPI() {
         request: MainPageRequest
     ): HomePageResponse {
         val response = app.get("${mainUrl}/page-gateway/widgets/ard/editorials/${request.data}?pageSize=${PAGE_SIZE}")
-            .parsedSafe<Editorial>() ?: throw ErrorLoadingException()
+            .parsed<Editorial>() ?: throw ErrorLoadingException()
 
         return newHomePageResponse(request.name, response.teasers.map { it.toSearchResponse() })
     }
@@ -55,7 +55,7 @@ open class ARD : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> {
         val response =
             app.get("$mainUrl/search-system/search/vods/ard?query=${query}&pageSize=${PAGE_SIZE}&platform=MEDIA_THEK&sortingCriteria=SCORE_DESC")
-                .parsedSafe<Search>() ?: throw ErrorLoadingException()
+                .parsed<Search>() ?: throw ErrorLoadingException()
 
         return response.teasers.map { it.toSearchResponse() }
     }
