@@ -16,6 +16,7 @@ import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.INFER_TYPE
 import com.lagradost.cloudstream3.utils.Qualities
 
 
@@ -46,10 +47,13 @@ open class ARD : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        val response = app.get("${mainUrl}/page-gateway/widgets/ard/editorials/${request.data}?pageSize=${PAGE_SIZE}")
-            .parsed<Editorial>()
+        val response =
+            app.get("${mainUrl}/page-gateway/widgets/ard/editorials/${request.data}?pageSize=${PAGE_SIZE}")
+                .parsed<Editorial>()
 
-        return newHomePageResponse(request.name, response.teasers.mapNotNull { it.toSearchResponse() })
+        return newHomePageResponse(
+            request.name,
+            response.teasers.mapNotNull { it.toSearchResponse() })
     }
 
     private fun getType(coreAssetType: String?): TvType {
@@ -61,10 +65,15 @@ open class ARD : MainAPI() {
     }
 
     private fun Teaser.toSearchResponse(): SearchResponse? {
+        val type = getType(this.coreAssetType)
+
         return newMovieSearchResponse(
             name = this.mediumTitle ?: this.shortTitle ?: return null,
-            url = EpisodeInfo(this.links?.target?.id ?: this.id).toJson(),
-            type = getType(this.coreAssetType),
+            url = ItemInfo(
+                this.links?.target?.id ?: this.id,
+                isLive = type == TvType.Live
+            ).toJson(),
+            type = type,
         ) {
             this.posterUrl =
                 this@toSearchResponse.images.values.firstOrNull()?.src?.let { getImageUrl(it) }
@@ -83,12 +92,15 @@ open class ARD : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        val episodeId = parseJson<EpisodeInfo>(url).id
+        val (episodeId, isLive) = parseJson<ItemInfo>(url)
 
-        val response = app.get("${mainUrl}/page-gateway/pages/ard/item/${episodeId}?embedded=false&mcV6=true")
-            .parsed<DetailsResponse>()
+        val response =
+            app.get(
+                "${mainUrl}/page-gateway/pages/ard/item/${episodeId}?embedded=false&mcV6=true"
+            )
+                .parsed<DetailsResponse>()
 
-        val streamInfo = response.widgets.firstOrNull { it.type == "player_ondemand" }
+        val streamInfo = response.widgets.firstOrNull { it.type.startsWith("player") }
         val embedded = streamInfo?.mediaCollection?.embedded
         return newMovieLoadResponse(
             name = response.title,
@@ -131,7 +143,10 @@ open class ARD : MainAPI() {
         for (subtitle in embedded.subtitles) {
             for (source in subtitle.sources) {
                 subtitleCallback.invoke(
-                    SubtitleFile(lang = subtitle.languageCode.orEmpty(), url = source.url ?: continue)
+                    SubtitleFile(
+                        lang = subtitle.languageCode.orEmpty(),
+                        url = source.url ?: continue
+                    )
                 )
             }
         }
@@ -139,7 +154,10 @@ open class ARD : MainAPI() {
         return true
     }
 
-    data class EpisodeInfo(val id: String)
+    data class ItemInfo(
+        val id: String,
+        val isLive: Boolean
+    )
 
     data class Search(
         val id: String,
@@ -228,8 +246,18 @@ open class ARD : MainAPI() {
         val id: String?,
         val isGeoBlocked: Boolean = false,
         val meta: Meta?,
+        @JsonProperty("_mediaArray") val mediaArray: List<MediaStreamArray> = emptyList(),
         val streams: List<Stream> = emptyList(),
         val subtitles: List<Subtitle> = emptyList(),
+    )
+
+    data class MediaStreamArray(
+        @JsonProperty("_mediaStreamArray") val mediaStreamArray: List<MediaStream>
+    )
+
+    data class MediaStream(
+        @JsonProperty("_quality") val quality: String?,
+        @JsonProperty("_stream") val stream: String,
     )
 
     data class Meta(
