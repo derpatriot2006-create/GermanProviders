@@ -33,7 +33,7 @@ open class ARD : MainAPI() {
         request: MainPageRequest
     ): HomePageResponse {
         val response = app.get("${mainUrl}/page-gateway/widgets/ard/editorials/${request.data}?pageSize=${PAGE_SIZE}")
-            .parsed<Editorial>() ?: throw ErrorLoadingException()
+            .parsed<Editorial>()
 
         return newHomePageResponse(request.name, response.teasers.map { it.toSearchResponse() })
     }
@@ -46,7 +46,7 @@ open class ARD : MainAPI() {
         ) {
             this.posterUrl =
                 this@toSearchResponse.images.values.firstOrNull()?.src?.let { getImageUrl(it) }
-            this.year = this@toSearchResponse.broadcastedOn.take(4).toIntOrNull()
+            this.year = this@toSearchResponse.broadcastedOn?.take(4)?.toIntOrNull()
         }
     }
 
@@ -55,7 +55,7 @@ open class ARD : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> {
         val response =
             app.get("$mainUrl/search-system/search/vods/ard?query=${query}&pageSize=${PAGE_SIZE}&platform=MEDIA_THEK&sortingCriteria=SCORE_DESC")
-                .parsed<Search>() ?: throw ErrorLoadingException()
+                .parsed<Search>()
 
         return response.teasers.map { it.toSearchResponse() }
     }
@@ -64,7 +64,7 @@ open class ARD : MainAPI() {
         val episodeId = parseJson<EpisodeInfo>(url).id
 
         val response = app.get("${mainUrl}page-gateway/pages/ard/item/${episodeId}")
-            .parsedSafe<DetailsResponse>() ?: throw ErrorLoadingException()
+            .parsed<DetailsResponse>()
 
         val streamInfo = response.widgets.firstOrNull { it.type == "player_ondemand" }
         val embedded = streamInfo?.mediaCollection?.embedded
@@ -148,7 +148,7 @@ open class ARD : MainAPI() {
     data class Teaser(
         val availableTo: String,
         val binaryFeatures: List<String>,
-        val broadcastedOn: String,
+        val broadcastedOn: String?,
         val coreAssetType: String,
         val duration: Double,
         val id: String,
@@ -160,7 +160,6 @@ open class ARD : MainAPI() {
         val mediumTitle: String,
         val personalized: Boolean,
         val playtime: Any?,
-        val publicationService: PublicationService,
         val links: Links,
         val shortTitle: String,
         val show: Show,
@@ -169,29 +168,12 @@ open class ARD : MainAPI() {
         val type: String,
     )
 
-    data class PublicationService(
-        val name: String,
-        val logo: Logo,
-        val publisherType: String,
-        val partner: String,
-        val id: String,
-        val coreId: String,
-    )
-
-    data class Logo(
-        val title: String,
-        val alt: String,
-        val producerName: String,
-        val src: String,
-        val aspectRatio: String,
-    )
-
     data class Show(
         val id: String,
         val coremediaId: Double,
         val title: String,
         val publisher: Publisher,
-        val self: Self3,
+        val self: Self,
         val images: Map<String, Image>,
         val shortSynopsis: String,
         val synopsis: String,
@@ -215,26 +197,11 @@ open class ARD : MainAPI() {
 
     data class Publisher(
         val name: String,
-        val logo: Logo2,
+        val logo: Image,
         val publisherType: String,
         val partner: String,
         val id: String,
         val coreId: String,
-    )
-
-    data class Logo2(
-        val title: String,
-        val alt: String,
-        val producerName: String,
-        val src: String,
-        val aspectRatio: String,
-    )
-
-    data class Self3(
-        val id: Any?,
-        val title: String,
-        val href: String,
-        val type: String,
     )
 
     data class Homepage(
@@ -273,7 +240,6 @@ open class ARD : MainAPI() {
         val pagination: Pagination?,
         val personalized: Boolean,
         val playerConfig: Any?,
-        val publicationService: PublicationService2?,
         val links: Links,
         val show: ShowShort?,
         val synopsis: String?,
@@ -316,17 +282,9 @@ open class ARD : MainAPI() {
         val clipSourceName: String,
         val durationSeconds: Long,
         val images: List<Image>,
-        val maturityContentRating: MaturityContentRating,
-        val publicationService: PublicationService,
         val seriesTitle: String,
         val synopsis: String,
         val title: String,
-    )
-
-    data class MaturityContentRating(
-        val age: Long,
-        val isBlocked: Boolean,
-        val kind: String,
     )
 
     data class PluginData(
@@ -384,15 +342,6 @@ open class ARD : MainAPI() {
         val pageNumber: Long,
         val pageSize: Long,
         val totalElements: Any?,
-    )
-
-    data class PublicationService2(
-        val name: String,
-        val logo: Logo,
-        val publisherType: String,
-        val partner: String,
-        val id: String,
-        val coreId: String,
     )
 
     data class ShowShort(
