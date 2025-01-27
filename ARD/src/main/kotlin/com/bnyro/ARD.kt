@@ -28,12 +28,14 @@ open class ARD : MainAPI() {
     override var mainUrl = "https://api.ardmediathek.de"
 
     override val mainPage = mainPageOf(
+        "1FdQ5oz2JK6o2qmyqMsqiI:-4573418300315789064" to "Jetzt Live",
         "1FdQ5oz2JK6o2qmyqMsqiI:7024894723483797725" to "Film-Empfehlungen",
         "d08a2b5f-8133-4bdd-8ea9-64b6172ce5ee:5379188208992982100" to "Aktuelle Debatten",
         "d08a2b5f-8133-4bdd-8ea9-64b6172ce5ee:-1083078599273736954" to "Exklusive Recherchen",
         "3JvraZLz6r8E9VJOSjxe0m:5345608557251872358" to "Derzeit beliebte Dokus",
         "3JvraZLz6r8E9VJOSjxe0m:3945748791191973508" to "Spannende Dokus und Reportagen",
-        "3JvraZLz6r8E9VJOSjxe0m:-4951729414550313310" to "Dokumentarfilme"
+        "3JvraZLz6r8E9VJOSjxe0m:-4951729414550313310" to "Dokumentarfilme",
+        "1FdQ5oz2JK6o2qmyqMsqiI:-8035917636575745435" to "Politik-Talks und Politik-Magazine"
     )
 
     private fun getImageUrl(url: String): String {
@@ -50,11 +52,19 @@ open class ARD : MainAPI() {
         return newHomePageResponse(request.name, response.teasers.mapNotNull { it.toSearchResponse() })
     }
 
+    private fun getType(coreAssetType: String?): TvType {
+        return when {
+            coreAssetType?.endsWith("LIVESTREAM") == true -> TvType.Live
+            coreAssetType?.endsWith("SERIES") == true -> TvType.TvSeries
+            else -> TvType.Movie
+        }
+    }
+
     private fun Teaser.toSearchResponse(): SearchResponse? {
         return newMovieSearchResponse(
             name = this.mediumTitle ?: this.shortTitle ?: return null,
             url = EpisodeInfo(this.links?.target?.id ?: this.id).toJson(),
-            type = TvType.Movie,
+            type = getType(this.coreAssetType),
         ) {
             this.posterUrl =
                 this@toSearchResponse.images.values.firstOrNull()?.src?.let { getImageUrl(it) }
@@ -83,7 +93,7 @@ open class ARD : MainAPI() {
         return newMovieLoadResponse(
             name = response.title,
             url = url,
-            type = TvType.Others,
+            type = getType(response.coreAssetType),
             data = embedded?.toJson()
         ) {
             this.posterUrl = streamInfo?.image?.src?.let { getImageUrl(it) }
@@ -148,8 +158,8 @@ open class ARD : MainAPI() {
         val mediumTitle: String?,
         val shortTitle: String?,
         val show: Show?,
-        val type: String?,
-        val links: Links?
+        val links: Links?,
+        val coreAssetType: String?
     )
 
     data class Links(
@@ -178,6 +188,7 @@ open class ARD : MainAPI() {
         val id: String?,
         val title: String,
         val widgets: List<Widget> = emptyList(),
+        val coreAssetType: String?
     )
 
     data class Widget(
