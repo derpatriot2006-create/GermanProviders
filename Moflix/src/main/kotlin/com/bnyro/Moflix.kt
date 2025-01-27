@@ -107,22 +107,22 @@ open class Moflix : MainAPI() {
                     "$mainUrl/api/v1/titles/${res.title?.id}/seasons/${season.number}?loader=seasonPage",
                     referer = "$mainUrl/"
                 ).parsedSafe<Responses>()?.episodes?.data?.map { episode ->
-                    val status =
-                        if (episode.status.equals("upcoming", true)) " • [UPCOMING]" else ""
-                    Episode(
+                    newEpisode(
                         LoadData(
                             id,
                             episode.seasonNumber,
                             episode.episodeNumber,
                             res.title?.isSeries
                         ).toJson(),
-                        episode.name + status,
-                        episode.seasonNumber,
-                        episode.episodeNumber,
-                        episode.poster,
-                        episode.rating?.times(10)?.roundToInt(),
-                        episode.description,
-                    ).apply {
+                    ) {
+                        val status =
+                            if (episode.status.equals("upcoming", true)) " • [UPCOMING]" else ""
+                        this.name = episode.name + status
+                        this.season = episode.seasonNumber
+                        this.episode = episode.episodeNumber
+                        this.posterUrl = episode.poster
+                        this.rating = episode.rating?.times(10)?.roundToInt()
+                        this.description = episode.description
                         this.addDate(episode.releaseDate?.substringBefore("T"))
                     }
                 }
@@ -337,5 +337,4 @@ open class Moflix : MainAPI() {
             @JsonProperty("display_name") val displayName: String? = null,
         )
     }
-
 }

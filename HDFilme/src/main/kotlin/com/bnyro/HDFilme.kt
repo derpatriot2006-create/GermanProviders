@@ -1,6 +1,7 @@
 package com.bnyro
 
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -88,8 +89,8 @@ open class HDFilme : MainAPI() {
                 ?.replace("min", "", ignoreCase = true)?.trim()?.toIntOrNull()
             this.plot = description
             this.tags = meta.firstOrNull()?.select("a")?.map { it.text() }
-            this.actors = actors.map { ActorData(Actor(it)) }
             this.recommendations = related
+            addActors(actors)
         }
     }
 

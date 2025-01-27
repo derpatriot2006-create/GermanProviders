@@ -3,7 +3,6 @@ package com.bnyro
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
-import com.lagradost.cloudstream3.extractors.Voe
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
@@ -70,20 +69,19 @@ open class Serienstream : MainAPI() {
         val actors =
             document.select("li:contains(Schauspieler:) ul li a").map { it.select("span").text() }
 
-        val episodes = mutableListOf<Episode>()
-        document.select("div#stream > ul:first-child li").map { ele ->
-            val page = ele.selectFirst("a")
-            val epsDocument = app.get(fixUrl(page?.attr("href") ?: return@map)).document
-            epsDocument.select("div#stream > ul:nth-child(4) li").mapNotNull { eps ->
-                episodes.add(
-                    Episode(
-                        fixUrl(eps.selectFirst("a")?.attr("href") ?: return@mapNotNull null),
-                        episode = eps.selectFirst("a")?.text()?.toIntOrNull(),
-                        season = page.text().toIntOrNull()
-                    )
-                )
-            }
-        }
+        val episodes = document.select("div#stream > ul:first-child li").mapNotNull { ele ->
+            val page = ele.selectFirst("a") ?: return@mapNotNull null
+            val epsDocument = app.get(fixUrl(page.attr("href"))).document
+
+            epsDocument.select("div#stream > ul:nth-child(4) li").map { eps ->
+                newEpisode(
+                    fixUrl(eps.selectFirst("a")?.attr("href") ?: return@map null),
+                ) {
+                    this.episode = eps.selectFirst("a")?.text()?.toIntOrNull()
+                    this.season = page.text().toIntOrNull()
+                }
+            }.filterNotNull()
+        }.flatten()
 
         return newTvSeriesLoadResponse(
             title,

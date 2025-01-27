@@ -2,6 +2,7 @@ package com.bnyro
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -66,10 +67,10 @@ open class MediaCCC : MainAPI() {
             this.posterUrl = response.posterUrl
             this.tags = response.tags
             this.plot = response.description
-            this.actors = response.persons.map { ActorData(Actor(it)) }
             this.duration = response.duration?.toInt()?.div(60)
             this.comingSoon = response.recordings.isEmpty()
-            this.year = response.date?.substring(0, 4)?.toIntOrNull()
+            this.year = response.date?.take(4)?.toIntOrNull()
+            addActors(response.persons)
         }
     }
 
