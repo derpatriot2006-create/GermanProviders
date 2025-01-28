@@ -104,18 +104,20 @@ open class ARD : MainAPI() {
 
         val type = getType(response.coreAssetType)
         val episodes =
-            response.widgets.filter { it.compilationType == "itemsOfSeason" }.map { season ->
-                season.teasers.mapIndexed { index, episode ->
-                    newEpisode(ItemInfo(episode.links?.target?.id ?: episode.id, type)) {
-                        this.name = episode.mediumTitle ?: episode.longTitle
-                        this.season = season.seasonNumber?.toIntOrNull()
-                        this.runTime = episode.duration?.div(60)?.toInt()
-                        this.episode = index + 1
-                        this.posterUrl = episode.images.values.firstOrNull()?.src
-                        addDate(episode.broadcastedOn?.take(10))
+            response.widgets.filter { it.compilationType?.startsWith("itemsOf") == true }
+                .map { season ->
+                    season.teasers.mapIndexed { index, episode ->
+                        newEpisode(ItemInfo(episode.links?.target?.id ?: episode.id, type)) {
+                            this.name = episode.mediumTitle ?: episode.longTitle
+                            this.season = season.seasonNumber?.toIntOrNull()
+                            this.runTime = episode.duration?.div(60)?.toInt()
+                            this.episode = index + 1
+                            this.posterUrl =
+                                episode.images.values.firstOrNull()?.src?.let { getImageUrl(it) }
+                            addDate(episode.broadcastedOn?.take(10))
+                        }
                     }
-                }
-            }.flatten()
+                }.flatten()
 
         return newTvSeriesLoadResponse(
             name = response.title,
@@ -123,17 +125,17 @@ open class ARD : MainAPI() {
             type = type,
             episodes = episodes
         ) {
-            this.posterUrl = (response.heroImage ?: response.image)?.src
+            this.posterUrl = (response.heroImage ?: response.image)?.src?.let { getImageUrl(it) }
             this.plot = response.synopsis
             response.trailer?.links?.target?.id?.let {
-                addTrailer(ItemInfo(it, TvType.TvSeries).toJson())
+                addTrailer(ItemInfo(it, type).toJson())
             }
         }
     }
 
     private suspend fun fetchEpisodeInfo(episodeId: String): DetailsResponse {
         return app.get(
-            "${mainUrl}/page-gateway/pages/ard/item/${episodeId}?embedded=false&mcV6=true"
+            "${mainUrl}/page-gateway/pages/ard/item/${episodeId}?embedded=true&mcV6=true"
         )
             .parsed<DetailsResponse>()
     }
