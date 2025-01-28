@@ -72,7 +72,7 @@ open class ARD : MainAPI() {
     private fun getType(coreAssetType: String?): TvType {
         return when {
             coreAssetType?.endsWith("LIVESTREAM") == true -> TvType.Live
-            coreAssetType?.endsWith("SERIES") == true -> TvType.TvSeries
+            coreAssetType?.endsWith("SERIES") == true || coreAssetType == "SINGLE" -> TvType.TvSeries
             else -> TvType.Movie
         }
     }
