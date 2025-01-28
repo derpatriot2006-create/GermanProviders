@@ -19,7 +19,8 @@ cloudstream {
     status = 1 // will be 3 if unspecified
     tvTypes = listOf(
         "Movie",
-        "TvSeries"
+        "TvSeries",
+        "Live"
     )
 
     iconUrl = "https://upload.wikimedia.org/wikipedia/commons/d/d1/ARD_Dachmarke_2014.svg"

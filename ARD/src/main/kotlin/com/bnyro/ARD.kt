@@ -30,17 +30,23 @@ open class ARD : MainAPI() {
     override var lang = "de"
     override val hasQuickSearch = true
     override val hasMainPage = true
-    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
+    override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Live)
     override var mainUrl = "https://api.ardmediathek.de"
 
     override val mainPage = mainPageOf(
         "1FdQ5oz2JK6o2qmyqMsqiI:-4573418300315789064" to "Jetzt Live",
         "1FdQ5oz2JK6o2qmyqMsqiI:7024894723483797725" to "Film-Empfehlungen",
-        "d08a2b5f-8133-4bdd-8ea9-64b6172ce5ee:5379188208992982100" to "Aktuelle Debatten",
-        "d08a2b5f-8133-4bdd-8ea9-64b6172ce5ee:-1083078599273736954" to "Exklusive Recherchen",
+        "1f65j6Y49hbQUyQbg3sWRP:-6881003991164746949" to "Unsere Top-Serien",
+        "1f65j6Y49hbQUyQbg3sWRP:-1242529055250270726" to "Dramaserien",
+        "1f65j6Y49hbQUyQbg3sWRP:-1698940734772669089" to "Crime und spannende Serien",
         "3JvraZLz6r8E9VJOSjxe0m:5345608557251872358" to "Derzeit beliebte Dokus",
         "3JvraZLz6r8E9VJOSjxe0m:3945748791191973508" to "Spannende Dokus und Reportagen",
         "3JvraZLz6r8E9VJOSjxe0m:-4951729414550313310" to "Dokumentarfilme",
+        "1FdQ5oz2JK6o2qmyqMsqiI:-4156144666028728696" to "Beste Doku-Serien",
+        "d08a2b5f-8133-4bdd-8ea9-64b6172ce5ee:5379188208992982100" to "Aktuelle Debatten",
+        "d08a2b5f-8133-4bdd-8ea9-64b6172ce5ee:-1083078599273736954" to "Exklusive Recherchen",
+        "1FdQ5oz2JK6o2qmyqMsqiI:-6311741896596619341" to "Doku-Soaps",
+        "1FdQ5oz2JK6o2qmyqMsqiI:8803268113750988523" to "Reality-Shows",
         "1FdQ5oz2JK6o2qmyqMsqiI:-8035917636575745435" to "Politik-Talks und Politik-Magazine"
     )
 
