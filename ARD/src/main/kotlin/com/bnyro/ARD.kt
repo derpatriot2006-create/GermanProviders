@@ -184,7 +184,9 @@ open class ARD : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        var embedded = tryParseJson<Embedded>(data)
+        // data can either be of type Embedded or ItemInfo
+
+        var embedded = tryParseJson<Embedded>(data)?.takeIf { it.meta != null }
         if (embedded == null) {
             val (id, _) = parseJson<ItemInfo>(data)
 
@@ -312,6 +314,7 @@ open class ARD : MainAPI() {
         val id: String?,
         val isGeoBlocked: Boolean = false,
         val meta: Meta?,
+        // only included if mcV6 is set to false in request query parameters
         @JsonProperty("_mediaArray") val mediaArray: List<MediaStreamArray> = emptyList(),
         val streams: List<Stream> = emptyList(),
         val subtitles: List<Subtitle> = emptyList(),
