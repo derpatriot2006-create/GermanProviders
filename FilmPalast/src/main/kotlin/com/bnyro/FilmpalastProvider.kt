@@ -15,6 +15,11 @@ class FilmpalastProvider : MainAPI() {
     override var lang = "de"
     override val hasMainPage = true
 
+    override val mainPage: List<MainPageData> = mainPageOf(
+        "movies/top" to "Filme",
+        "serien/view" to "Serien"
+    )
+
     private fun Element.toSearchResponse(): SearchResponse {
         val title = select("cite a.rb").text()
         val url = select("a.rb").attr("href")
@@ -25,17 +30,12 @@ class FilmpalastProvider : MainAPI() {
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val movies = app.get("$mainUrl/movies/top").document
-        val movieResults = movies.select("#content .liste.rb").mapNotNull {
+        val response = app.get("$mainUrl/${request.data}/page/${page}/").document
+        val results = response.select("#content .liste.rb").mapNotNull {
             it.toSearchResponse()
         }
-        val series = app.get("$mainUrl/serien/view").document
-        val seriesResults = series.select("#content .liste.rb").mapNotNull {
-            it.toSearchResponse()
-        }
-        val homePageLists =
-            listOf(HomePageList("Movies", movieResults), HomePageList("Series", seriesResults))
-        return newHomePageResponse(homePageLists, hasNext = false)
+
+        return newHomePageResponse(request, results, hasNext = true)
     }
 
     override suspend fun search(query: String): List<SearchResponse> {

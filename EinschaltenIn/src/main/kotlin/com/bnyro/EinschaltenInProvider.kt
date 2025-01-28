@@ -33,7 +33,10 @@ open class EinschaltenInProvider : MainAPI() {
         val response = app.get("${mainUrl}/__data.json")
             .parsed<Response>()
 
-        return newHomePageResponse(HomePageList("Popular", toSearchResponses(response)))
+        return newHomePageResponse(
+            HomePageList("Popular", toSearchResponses(response)),
+            hasNext = false
+        )
     }
 
     private fun getImageUrl(fileWithLeadingSlash: String): String {

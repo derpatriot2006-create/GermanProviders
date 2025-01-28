@@ -36,17 +36,17 @@ open class Serienstream : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-
         val document = app.get(mainUrl).document
-        val item = arrayListOf<HomePageList>()
-        document.select("div.carousel").map { ele ->
-            val header = ele.selectFirst("h2")?.text() ?: return@map
-            val home = ele.select("div.coverListItem").mapNotNull {
+
+        val homePageLists = document.select("div.carousel").map { ele ->
+            val header = ele.selectFirst("h2")?.text() ?: return@map null
+            val items = ele.select("div.coverListItem").mapNotNull {
                 it.toSearchResult()
             }
-            if (home.isNotEmpty()) item.add(HomePageList(header, home))
-        }
-        return newHomePageResponse(item)
+            HomePageList(header, items)
+        }.filterNotNull()
+
+        return newHomePageResponse(homePageLists, hasNext = false)
     }
 
     override suspend fun search(query: String): List<SearchResponse> {

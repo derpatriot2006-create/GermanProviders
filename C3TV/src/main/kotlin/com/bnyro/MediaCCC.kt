@@ -30,7 +30,11 @@ open class MediaCCC : MainAPI() {
         val response = app.get("${mainUrl}/${request.data}")
             .parsed<EventsResponse>()
 
-        return newHomePageResponse(request.name, response.events.map { it.toSearchResponse() })
+        return newHomePageResponse(
+            request.name,
+            response.events.map { it.toSearchResponse() },
+            hasNext = false
+        )
     }
 
     private fun Event.toSearchResponse(): SearchResponse {

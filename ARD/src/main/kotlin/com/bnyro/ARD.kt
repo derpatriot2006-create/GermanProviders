@@ -58,7 +58,9 @@ open class ARD : MainAPI() {
 
         return newHomePageResponse(
             request.name,
-            response.teasers.mapNotNull { it.toSearchResponse() })
+            response.teasers.mapNotNull { it.toSearchResponse() },
+            hasNext = false
+        )
     }
 
     private fun getType(coreAssetType: String?): TvType {
