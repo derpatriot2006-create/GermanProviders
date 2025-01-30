@@ -20,11 +20,11 @@ abstract class XCineBase : MainAPI() {
     abstract val mainAPI: String
 
     override val mainPage = mainPageOf(
-        "data/browse/?lang=2&keyword=&year=&rating=&votes=&genre=&country=&cast=&directors=&type=movies&order_by=trending" to "Trending",
-        "data/browse/?lang=2&keyword=&year=&rating=&votes=&genre=&country=&cast=&directors=&type=movies&order_by=Views" to "Most View Filme",
-        "data/browse/?lang=2&keyword=&year=&rating=&votes=&genre=&country=&cast=&directors=&type=tvseries&order_by=Trending" to "Trending Serien",
-        "data/browse/?lang=2&keyword=&year=&rating=&votes=&genre=&country=&cast=&directors=&type=movies&order_by=Updates" to "Updated Filme",
-        "data/browse/?lang=2&keyword=&year=&rating=&votes=&genre=&country=&cast=&directors=&type=tvseries&order_by=Updates" to "Updated Serien",
+        "data/browse/?lang=2&keyword=&year=&rating=&votes=&genre=&country=&cast=&directors=&type=movies&order_by=trending" to "Trends",
+        "data/browse/?lang=2&keyword=&year=&rating=&votes=&genre=&country=&cast=&directors=&type=movies&order_by=Views" to "Meistgesehene Filme",
+        "data/browse/?lang=2&keyword=&year=&rating=&votes=&genre=&country=&cast=&directors=&type=tvseries&order_by=Trending" to "Serien-Trends",
+        "data/browse/?lang=2&keyword=&year=&rating=&votes=&genre=&country=&cast=&directors=&type=movies&order_by=Updates" to "Neue Filme",
+        "data/browse/?lang=2&keyword=&year=&rating=&votes=&genre=&country=&cast=&directors=&type=tvseries&order_by=Updates" to "Neue Serien",
     )
 
     private fun getImageUrl(link: String?): String? {
@@ -84,6 +84,12 @@ abstract class XCineBase : MainAPI() {
                 it.toSearchResponse()
             }
 
+        val actors = when (res.cast) {
+            is String -> res.cast.split(", ")
+            is List<*> -> res.cast.filterIsInstance<String>()
+            else -> emptyList()
+        }
+
         return if (type == "tv") {
             val episodes = res.streams?.groupBy { it.e }?.mapNotNull { eps ->
                 val loadData = LoadData(eps.value.mapNotNull { it.stream }).toJson()
@@ -106,7 +112,7 @@ abstract class XCineBase : MainAPI() {
                 this.tags = listOf(res.genres ?: "")
                 this.contentRating = res.rating
                 this.recommendations = recommendations
-                addActors(res.cast)
+                addActors(actors)
             }
         } else {
             newMovieLoadResponse(
@@ -121,7 +127,7 @@ abstract class XCineBase : MainAPI() {
                 this.tags = listOf(res.genres ?: "")
                 this.contentRating = res.rating
                 this.recommendations = recommendations
-                addActors(res.cast)
+                addActors(actors)
             }
         }
     }
@@ -186,7 +192,7 @@ abstract class XCineBase : MainAPI() {
         @JsonProperty("storyline") val storyline: String? = null,
         @JsonProperty("overview") val overview: String? = null,
         @JsonProperty("streams") val streams: ArrayList<Streams>? = arrayListOf(),
-        @JsonProperty("cast") val cast: ArrayList<String>? = arrayListOf(),
+        @JsonProperty("cast") val cast: Any? = null,
     )
 
     data class Media(
