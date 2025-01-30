@@ -1,6 +1,7 @@
 package com.bnyro
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.LoadResponse.Companion.addTrailer
@@ -50,8 +51,9 @@ open class ARD : MainAPI() {
         "1FdQ5oz2JK6o2qmyqMsqiI:-8035917636575745435" to "Politik-Talks und Politik-Magazine"
     )
 
-    private fun getImageUrl(url: String): String {
-        return url.replace("{width}", "200")
+    private fun getImageUrl(url: String, highQuality: Boolean): String {
+        val quality = if (highQuality) "1080" else "480"
+        return url.replace("{width}", quality)
     }
 
     override suspend fun getMainPage(
@@ -85,9 +87,23 @@ open class ARD : MainAPI() {
             url = ItemInfo(this.links?.target?.id ?: this.id, type).toJson(),
             type = type,
         ) {
-            this.posterUrl =
-                this@toSearchResponse.images.values.firstOrNull()?.src?.let { getImageUrl(it) }
+            this.posterUrl = this@toSearchResponse.images.values.firstOrNull()?.src?.let {
+                getImageUrl(it, false)
+            }
             this.year = this@toSearchResponse.broadcastedOn?.take(4)?.toIntOrNull()
+        }
+    }
+
+    private fun Teaser.toEpisode(season: Widget, index: Int, type: TvType): Episode {
+        return newEpisode(ItemInfo(links?.target?.id ?: id, type)) {
+            this.name = mediumTitle ?: longTitle
+            this.season = season.seasonNumber?.toIntOrNull()
+            this.runTime = duration?.div(60)?.toInt()
+            this.episode = index
+            this.posterUrl = images.values.firstOrNull()?.src?.let {
+                getImageUrl(it, false)
+            }
+            addDate(broadcastedOn?.take(10))
         }
     }
 
@@ -110,18 +126,11 @@ open class ARD : MainAPI() {
 
         val type = getType(response.coreAssetType)
         val episodes =
-            response.widgets.filter { it.compilationType?.startsWith("itemsOf") == true }
+            response.widgets
+                .filter { it.compilationType?.startsWith("itemsOf") == true }
                 .map { season ->
                     season.teasers.mapIndexed { index, episode ->
-                        newEpisode(ItemInfo(episode.links?.target?.id ?: episode.id, type)) {
-                            this.name = episode.mediumTitle ?: episode.longTitle
-                            this.season = season.seasonNumber?.toIntOrNull()
-                            this.runTime = episode.duration?.div(60)?.toInt()
-                            this.episode = index + 1
-                            this.posterUrl =
-                                episode.images.values.firstOrNull()?.src?.let { getImageUrl(it) }
-                            addDate(episode.broadcastedOn?.take(10))
-                        }
+                        episode.toEpisode(season, index + 1, type)
                     }
                 }.flatten()
 
@@ -131,7 +140,8 @@ open class ARD : MainAPI() {
             type = type,
             episodes = episodes
         ) {
-            this.posterUrl = (response.heroImage ?: response.image)?.src?.let { getImageUrl(it) }
+            this.posterUrl = (response.heroImage ?: response.image)?.src
+                ?.let { getImageUrl(it, true) }
             this.plot = response.synopsis
             response.trailer?.links?.target?.id?.let {
                 addTrailer(ItemInfo(it, type).toJson())
@@ -161,7 +171,7 @@ open class ARD : MainAPI() {
             type = getType(response.coreAssetType),
             data = embedded?.toJson()
         ) {
-            this.posterUrl = streamInfo?.image?.src?.let { getImageUrl(it) }
+            this.posterUrl = streamInfo?.image?.src?.let { getImageUrl(it, true) }
             this.plot = streamInfo?.synopsis
             this.duration = embedded?.meta?.durationSeconds?.div(60)?.toInt()
             this.comingSoon = embedded?.streams?.isEmpty() == true
