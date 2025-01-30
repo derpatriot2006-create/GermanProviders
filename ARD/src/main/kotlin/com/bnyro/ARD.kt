@@ -62,11 +62,8 @@ open class ARD : MainAPI() {
             app.get("${mainUrl}/page-gateway/widgets/ard/editorials/${request.data}?pageSize=${PAGE_SIZE}&pageNumber=${page - 1}")
                 .parsed<Editorial>()
 
-        return newHomePageResponse(
-            request.name,
-            response.teasers.mapNotNull { it.toSearchResponse() },
-            hasNext = false
-        )
+        val searchResults = response.teasers.mapNotNull { it.toSearchResponse() }
+        return newHomePageResponse(request.name, searchResults, hasNext = false)
     }
 
     private fun getType(coreAssetType: String?): TvType {
@@ -78,6 +75,9 @@ open class ARD : MainAPI() {
     }
 
     private fun Teaser.toSearchResponse(): SearchResponse? {
+        // results without coreAssetType are no media items, but rather info pages, e.g. editorial pages
+        if (coreAssetType == null) return null
+
         val type = getType(this.coreAssetType)
 
         return newMovieSearchResponse(
