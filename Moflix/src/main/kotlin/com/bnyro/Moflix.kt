@@ -68,7 +68,8 @@ open class Moflix : MainAPI() {
 
     override suspend fun search(query: String): List<SearchResponse>? {
         return app.get("$mainUrl/api/v1/search/$query?loader=searchPage", referer = "$mainUrl/")
-            .parsed<Responses>().results?.mapNotNull { it.toSearchResponse() }
+            .parsed<Responses>().results?.filter { it.modelType == "title" }
+            ?.mapNotNull { it.toSearchResponse() }
     }
 
     override suspend fun load(url: String): LoadResponse {
@@ -293,6 +294,8 @@ open class Moflix : MainAPI() {
         @JsonProperty("name") val name: String? = null,
         @JsonProperty("poster") val poster: String? = null,
         @JsonProperty("backdrop") val backdrop: String? = null,
+        @JsonProperty("release_date") val releaseDate: String? = null,
+        @JsonProperty("model_type") val modelType: String? = null
     )
 
     data class Credits(
