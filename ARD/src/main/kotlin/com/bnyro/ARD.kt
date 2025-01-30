@@ -84,6 +84,8 @@ open class ARD : MainAPI() {
         return url.replace("{width}", quality.toString())
     }
 
+    private fun Teaser.getID() = this.links?.target?.id ?: this.id
+
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
@@ -97,8 +99,7 @@ open class ARD : MainAPI() {
 
             val results = response.teasers.map { channel ->
                 // append program information (if available)
-                val channelId = channel.links?.target?.id ?: channel.id
-                val programInfo = programInformation[channelId]
+                val programInfo = programInformation[channel.getID()]
 
                 programInfo?.copy(shortTitle = "${programInfo.shortTitle} (${channel.shortTitle})")
                     ?: channel
@@ -165,11 +166,10 @@ open class ARD : MainAPI() {
         if (links?.target?.type?.endsWith("external") == true) return null
 
         val type = getType(this.coreAssetType)
-        val itemId = this.links?.target?.id ?: this.id
 
         return newMovieSearchResponse(
             name = this.shortTitle ?: this.mediumTitle ?: return null,
-            url = ItemInfo(itemId, type).toJson(),
+            url = ItemInfo(getID(), type).toJson(),
             type = type,
         ) {
             this.posterUrl = this@toSearchResponse.images.values.firstOrNull()?.src?.let {
@@ -180,7 +180,7 @@ open class ARD : MainAPI() {
     }
 
     private fun Teaser.toEpisode(season: Widget, index: Int, type: TvType): Episode {
-        return newEpisode(ItemInfo(links?.target?.id ?: id, type)) {
+        return newEpisode(ItemInfo(getID(), type)) {
             this.name = shortTitle ?: mediumTitle
             this.season = season.seasonNumber?.toIntOrNull()
             this.runTime = duration?.div(60)?.toInt()
