@@ -16,6 +16,8 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newLiveSearchResponse
+import com.lagradost.cloudstream3.newLiveStreamLoadResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
@@ -51,9 +53,28 @@ open class ARD : MainAPI() {
         "1FdQ5oz2JK6o2qmyqMsqiI:-8035917636575745435" to "Politik-Talks und Politik-Magazine"
     )
 
+    // Sources: https://gist.github.com/Axel-Erfurt/b40584d152e1c2f13259590a135e05f4, https://www.zdf.de/live-tv
+    private val extraLiveLinks = listOf(
+        LiveStream(
+            "ZDF",
+            "http://zdf-hls-15.akamaized.net/hls/live/2016498/de/high/master.m3u8",
+            "https://www.zdf.de/assets/2400-zdf-100~768x432"
+        ),
+        LiveStream(
+            "ZDF neo",
+            "http://zdf-hls-16.akamaized.net/hls/live/2016499/de/high/master.m3u8",
+            "https://www.zdf.de/assets/2400-zdfneo-100~768x432"
+        ),
+        LiveStream(
+            "ZDF info",
+            "http://zdf-hls-17.akamaized.net/hls/live/2016500/de/high/master.m3u8",
+            "https://www.zdf.de/assets/2400-zdfinfo-100~768x432"
+        )
+    )
+
     private fun getImageUrl(url: String, highQuality: Boolean): String {
-        val quality = if (highQuality) "1080" else "480"
-        return url.replace("{width}", quality)
+        val quality = if (highQuality) IMAGE_QUALITY else THUMBNAIL_QUALITY
+        return url.replace("{width}", quality.toString())
     }
 
     override suspend fun getMainPage(
@@ -64,8 +85,27 @@ open class ARD : MainAPI() {
             app.get("${mainUrl}/page-gateway/widgets/ard/editorials/${request.data}?pageSize=${PAGE_SIZE}&pageNumber=${page - 1}")
                 .parsed<Editorial>()
 
-        val searchResults = response.teasers.mapNotNull { it.toSearchResponse() }
+        val searchResults = response.teasers
+            .mapNotNull { it.toSearchResponse() }
+            .toMutableList()
+
+        if (request.name == "Jetzt Live") {
+            for (liveStream in extraLiveLinks) {
+                searchResults.add(liveStream.toSearchResponse())
+            }
+        }
+
         return newHomePageResponse(request.name, searchResults, hasNext = false)
+    }
+
+    private fun LiveStream.toSearchResponse(): SearchResponse {
+        return newLiveSearchResponse(
+            name = name,
+            url = this.toJson(),
+            type = TvType.Live
+        ) {
+            this.posterUrl = thumbUrl
+        }
     }
 
     private fun getType(coreAssetType: String?): TvType {
@@ -80,11 +120,15 @@ open class ARD : MainAPI() {
         // results without coreAssetType are no media items, but rather info pages, e.g. editorial pages
         if (coreAssetType == null) return null
 
+        // external target links are not supported, e.g. from ZDF
+        if (links?.target?.type?.endsWith("external") == true) return null
+
         val type = getType(this.coreAssetType)
+        val itemId = this.links?.target?.id ?: this.id
 
         return newMovieSearchResponse(
-            name = this.mediumTitle ?: this.shortTitle ?: return null,
-            url = ItemInfo(this.links?.target?.id ?: this.id, type).toJson(),
+            name = this.shortTitle ?: this.mediumTitle ?: return null,
+            url = ItemInfo(itemId, type).toJson(),
             type = type,
         ) {
             this.posterUrl = this@toSearchResponse.images.values.firstOrNull()?.src?.let {
@@ -96,7 +140,7 @@ open class ARD : MainAPI() {
 
     private fun Teaser.toEpisode(season: Widget, index: Int, type: TvType): Episode {
         return newEpisode(ItemInfo(links?.target?.id ?: id, type)) {
-            this.name = mediumTitle ?: longTitle
+            this.name = shortTitle ?: mediumTitle
             this.season = season.seasonNumber?.toIntOrNull()
             this.runTime = duration?.div(60)?.toInt()
             this.episode = index
@@ -179,7 +223,22 @@ open class ARD : MainAPI() {
         }
     }
 
+    private suspend fun liveStreamLoadResponse(liveStream: LiveStream): LoadResponse {
+        return newLiveStreamLoadResponse(
+            name = liveStream.name,
+            url = liveStream.url,
+            dataUrl = liveStream.toJson()
+        ) {
+            this.posterUrl = liveStream.thumbUrl
+        }
+    }
+
     override suspend fun load(url: String): LoadResponse? {
+        val liveStream = tryParseJson<LiveStream>(url)?.takeIf { it.url.isNotBlank() }
+        if (liveStream != null) {
+            return liveStreamLoadResponse(liveStream)
+        }
+
         val (id, type) = parseJson<ItemInfo>(url)
 
         return when (type) {
@@ -194,7 +253,22 @@ open class ARD : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        // data can either be of type Embedded or ItemInfo
+        // JSON data can either be of type Embedded, LiveStream or ItemInfo
+
+        val liveStream = tryParseJson<LiveStream>(data)?.takeIf { it.url.isNotBlank() }
+        if (liveStream != null) {
+            callback.invoke(
+                ExtractorLink(
+                    source = liveStream.name,
+                    name = liveStream.name,
+                    url = liveStream.url,
+                    referer = "$mainUrl/",
+                    quality = Qualities.P1080.value,
+                    isM3u8 = true
+                )
+            )
+            return true
+        }
 
         var embedded = tryParseJson<Embedded>(data)?.takeIf { it.meta != null }
         if (embedded == null) {
@@ -204,7 +278,6 @@ open class ARD : MainAPI() {
         }
 
         if (embedded == null) throw IllegalArgumentException("Couldn't find episode info!")
-        if (embedded.streams.isEmpty()) return false
 
         for (stream in embedded.streams) {
             for (media in stream.media) {
@@ -232,14 +305,22 @@ open class ARD : MainAPI() {
             }
         }
 
-        return true
+        return embedded.streams.isNotEmpty()
     }
 
+    // used internally in this implementation
     data class ItemInfo(
         val id: String,
         val type: TvType
     )
 
+    data class LiveStream(
+        val name: String,
+        val url: String,
+        val thumbUrl: String,
+    )
+
+    // ARD JSON response objects start here
     data class Search(
         val id: String,
         val teasers: List<Teaser> = emptyList(),
@@ -269,6 +350,7 @@ open class ARD : MainAPI() {
     data class Link(
         val id: String,
         val title: String,
+        val type: String?
     )
 
     data class Show(
@@ -424,5 +506,7 @@ open class ARD : MainAPI() {
 
     companion object {
         private const val PAGE_SIZE = 30
+        private const val IMAGE_QUALITY = 1080
+        private const val THUMBNAIL_QUALITY = 480
     }
 }
