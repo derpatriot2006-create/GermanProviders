@@ -15,6 +15,7 @@ class HDFilmePlugin: Plugin() {
 
         registerExtractorAPI(DoodstreamCom())
         registerExtractorAPI(SupervideoCom())
+        registerExtractorAPI(SupervideoTv())
         registerExtractorAPI(Supervideo())
         registerExtractorAPI(DroploadIo())
     }

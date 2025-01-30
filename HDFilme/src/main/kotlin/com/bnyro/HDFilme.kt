@@ -7,6 +7,7 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import org.jsoup.nodes.Element
+import org.jsoup.nodes.TextNode
 
 open class HDFilme : MainAPI() {
     override var name = "HDFilme"
@@ -25,7 +26,10 @@ open class HDFilme : MainAPI() {
         val recommendations = doc.select("#dle-content div.item")
             .map { it.toSearchResponse() }
 
-        return newHomePageResponse(HomePageList(name = "Recommended", recommendations), hasNext = true)
+        return newHomePageResponse(
+            HomePageList(name = "Recommended", recommendations),
+            hasNext = true
+        )
     }
 
     private fun Element.toSearchResponse(): SearchResponse {
@@ -63,7 +67,57 @@ open class HDFilme : MainAPI() {
         val description = doc.selectFirst("section:has(> h2) > div > p")?.text()
         val actors = details.select("li > a[href^='$mainUrl/xfsearch/actors/']").map { it.text() }
 
-        val streamsJsUrl = doc.select("script[src^='https://meinecloud.click/ddl']").attr("src")
+        val tags = meta.firstOrNull()?.select("a")?.map { it.text() }
+        val year = meta.getOrNull(2)?.text()?.toIntOrNull()
+        val duration = meta.getOrNull(3)?.text()
+            ?.replace("min", "", ignoreCase = true)?.trim()?.toIntOrNull()
+
+        val seasons = doc.select(".su-spoiler")
+        if (seasons.isNotEmpty()) {
+            val episodes = seasons.mapIndexed { seasonIndex, season ->
+                // collect all episode stream links
+                val episodes = mutableListOf<List<String>>()
+                var currentEpisodeLinks = mutableListOf<String>()
+                for (item in season.select(".su-spoiler-content > *")) {
+                    if (item.nameIs("br")) {
+                        episodes.add(currentEpisodeLinks)
+                        currentEpisodeLinks = mutableListOf()
+                    } else if (item.nameIs("a")) {
+                        val streamLink = fixUrl(item.attr("href"))
+                        currentEpisodeLinks.add(streamLink)
+                    }
+                }
+
+                episodes.mapIndexed { index, streams ->
+                    newEpisode(
+                        data = LoadData(streams).toJson()
+                    ) {
+                        this.name = title
+                        this.episode = index + 1
+                        this.season = seasonIndex + 1
+                    }
+                }
+            }.flatten()
+
+            return newTvSeriesLoadResponse(
+                name = title,
+                url = url,
+                type = TvType.TvSeries,
+                episodes = episodes
+            ) {
+                this.posterUrl = posterUrl
+                this.year = year
+                this.plot = description
+                this.duration = duration
+                this.tags = tags
+                addActors(actors)
+            }
+        }
+
+        val streamsJsUrl =
+            doc.selectFirst("script[src^='https://meinecloud.click/ddl']")?.attr("src")
+                ?: throw NoSuchFieldException("Couldn't find link to streams!")
+
         val streamsJs = app.get(streamsJsUrl).text
         val streamLinkRegex = Regex("(?<=')http.*(?=')")
         val streams = streamLinkRegex.findAll(streamsJs).map { it.value }.toList()
@@ -85,11 +139,10 @@ open class HDFilme : MainAPI() {
             LoadData(streams).toJson()
         ) {
             this.posterUrl = posterUrl
-            this.year = meta.getOrNull(2)?.text()?.toIntOrNull()
-            this.duration = meta.getOrNull(3)?.text()
-                ?.replace("min", "", ignoreCase = true)?.trim()?.toIntOrNull()
+            this.year = year
+            this.duration = duration
             this.plot = description
-            this.tags = meta.firstOrNull()?.select("a")?.map { it.text() }
+            this.tags = tags
             this.recommendations = related
             addActors(actors)
         }
