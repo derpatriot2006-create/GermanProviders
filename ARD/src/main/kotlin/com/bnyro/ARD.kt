@@ -26,6 +26,9 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 
 open class ARD : MainAPI() {
@@ -35,6 +38,7 @@ open class ARD : MainAPI() {
     override val hasMainPage = true
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries, TvType.Live)
     override var mainUrl = "https://api.ardmediathek.de"
+    open val programApiUrl = "https://programm-api.ard.de"
 
     override val mainPage = mainPageOf(
         "1FdQ5oz2JK6o2qmyqMsqiI:-4573418300315789064" to "Jetzt Live",
@@ -72,6 +76,9 @@ open class ARD : MainAPI() {
         )
     )
 
+    private val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.GERMANY)
+    private val dateTimeFormatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.GERMANY)
+
     private fun getImageUrl(url: String, highQuality: Boolean): String {
         val quality = if (highQuality) IMAGE_QUALITY else THUMBNAIL_QUALITY
         return url.replace("{width}", quality.toString())
@@ -85,17 +92,51 @@ open class ARD : MainAPI() {
             app.get("${mainUrl}/page-gateway/widgets/ard/editorials/${request.data}?pageSize=${PAGE_SIZE}&pageNumber=${page - 1}")
                 .parsed<Editorial>()
 
-        val searchResults = response.teasers
-            .mapNotNull { it.toSearchResponse() }
-            .toMutableList()
+        val searchResults = if (request.name == "Jetzt Live") {
+            val programInformation = fetchProgramInformation()
 
-        if (request.name == "Jetzt Live") {
-            for (liveStream in extraLiveLinks) {
-                searchResults.add(liveStream.toSearchResponse())
-            }
+            val results = response.teasers.map { channel ->
+                // append program information (if available)
+                val channelId = channel.links?.target?.id ?: channel.id
+                val programInfo = programInformation[channelId]
+
+                programInfo?.copy(shortTitle = "${programInfo.shortTitle} (${channel.shortTitle})")
+                    ?: channel
+            }.mapNotNull { it.toSearchResponse() }
+
+            // append external live streams
+            results + extraLiveLinks.map { it.toSearchResponse() }
+        } else {
+            response.teasers.mapNotNull { it.toSearchResponse() }
         }
 
         return newHomePageResponse(request.name, searchResults, hasNext = false)
+    }
+
+    private suspend fun fetchProgramInformation(): Map<String, Teaser> {
+        val now = Calendar.getInstance().time
+        val todayDate = dateFormatter.format(now)
+
+        val programToday = app.get("$programApiUrl/program/api/program?day=${todayDate}")
+            .parsedSafe<ProgramResponse>() ?: return emptyMap()
+
+        val program = mutableMapOf<String, Teaser>()
+        for (channel in programToday.channels) {
+            val teaser = channel.timeSlots.flatten().find { teaser ->
+                if (teaser.broadcastedOn == null || teaser.broadcastEnd == null) return@find false
+
+                val start = dateTimeFormatter.parse(teaser.broadcastedOn.take(19))
+                val end = dateTimeFormatter.parse(teaser.broadcastedOn.take(19))
+
+                if (start == null || end == null) return@find false
+
+                return@find start < now && now < end
+            } ?: continue
+
+            program[channel.crid] = teaser
+        }
+
+        return program
     }
 
     private fun LiveStream.toSearchResponse(): SearchResponse {
@@ -331,6 +372,7 @@ open class ARD : MainAPI() {
     data class Teaser(
         val availableTo: String?,
         val broadcastedOn: String?,
+        val broadcastEnd: String?,
         val duration: Double?,
         val id: String,
         val images: Map<String, Image> = emptyMap(),
@@ -502,6 +544,17 @@ open class ARD : MainAPI() {
         val links: Links?,
         val title: String?,
         val synopsis: String?,
+    )
+
+    data class ProgramResponse(
+        val links: Links,
+        val channels: List<Channel>
+    )
+
+    data class Channel(
+        val id: String,
+        val crid: String, // equals a normal ARD Mediathek urlid
+        val timeSlots: List<List<Teaser>>,
     )
 
     companion object {
