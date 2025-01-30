@@ -1,5 +1,6 @@
 package com.bnyro
 
+import com.fasterxml.jackson.annotation.JsonAlias
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.HomePageResponse
@@ -95,14 +96,19 @@ open class ARD : MainAPI() {
                 .parsed<Editorial>()
 
         val searchResults = if (request.name == "Jetzt Live") {
-            val programInformation = fetchProgramInformation()
+            val programInfoMap = fetchProgramInformation()
 
             val results = response.teasers.map { channel ->
                 // append program information (if available)
-                val programInfo = programInformation[channel.getID()]
+                val programInfo = programInfoMap[channel.getID()]
 
-                programInfo?.copy(shortTitle = "${programInfo.shortTitle} (${channel.shortTitle})")
-                    ?: channel
+                if (programInfo != null) {
+                    channel.copy(
+                        title = "${programInfo.title} (${channel.title})",
+                        images = programInfo.images,
+                        broadcastedOn = programInfo.broadcastedOn,
+                    )
+                } else channel
             }.mapNotNull { it.toSearchResponse() }
 
             // append external live streams
@@ -119,17 +125,15 @@ open class ARD : MainAPI() {
         val todayDate = dateFormatter.format(now)
 
         val programToday = app.get("$programApiUrl/program/api/program?day=${todayDate}")
-            .parsedSafe<ProgramResponse>() ?: return emptyMap()
+            .parsed<ProgramResponse>()
 
         val program = mutableMapOf<String, Teaser>()
         for (channel in programToday.channels) {
             val teaser = channel.timeSlots.flatten().find { teaser ->
                 if (teaser.broadcastedOn == null || teaser.broadcastEnd == null) return@find false
 
-                val start = dateTimeFormatter.parse(teaser.broadcastedOn.take(19))
-                val end = dateTimeFormatter.parse(teaser.broadcastedOn.take(19))
-
-                if (start == null || end == null) return@find false
+                val start = dateTimeFormatter.parse(teaser.broadcastedOn.take(19))!!
+                val end = dateTimeFormatter.parse(teaser.broadcastEnd.take(19))!!
 
                 return@find start < now && now < end
             } ?: continue
@@ -168,7 +172,7 @@ open class ARD : MainAPI() {
         val type = getType(this.coreAssetType)
 
         return newMovieSearchResponse(
-            name = this.shortTitle ?: this.mediumTitle ?: return null,
+            name = this.title ?: return null,
             url = ItemInfo(getID(), type).toJson(),
             type = type,
         ) {
@@ -181,7 +185,7 @@ open class ARD : MainAPI() {
 
     private fun Teaser.toEpisode(season: Widget, index: Int, type: TvType): Episode {
         return newEpisode(ItemInfo(getID(), type)) {
-            this.name = shortTitle ?: mediumTitle
+            this.name = title
             this.season = season.seasonNumber?.toIntOrNull()
             this.runTime = duration?.div(60)?.toInt()
             this.episode = index
@@ -376,22 +380,21 @@ open class ARD : MainAPI() {
         val duration: Double?,
         val id: String,
         val images: Map<String, Image> = emptyMap(),
-        val longTitle: String?,
-        val mediumTitle: String?,
-        val shortTitle: String?,
+        @JsonProperty("title")
+        @JsonAlias("shortTitle")
+        val title: String?,
         val show: Show?,
         val links: Links?,
         val coreAssetType: String?
     )
 
     data class Links(
-        val self: Link?,
         val target: Link?
     )
 
     data class Link(
-        val id: String,
-        val title: String,
+        val id: String?,
+        val title: String?,
         val type: String?
     )
 
