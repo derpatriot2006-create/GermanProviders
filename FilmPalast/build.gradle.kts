@@ -6,7 +6,7 @@ cloudstream {
     language = "de"
     // All of these properties are optional, you can safely remove them
 
-    description = "German Filmpalast provider"
+    description = "Filme & Serien sofort und kostenlos ansehen"
     authors = listOf("Bnyro")
 
     /**

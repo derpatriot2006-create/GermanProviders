@@ -6,7 +6,7 @@ cloudstream {
     language = "de"
     // All of these properties are optional, you can safely remove them
 
-    description = "German movies from hdfilme.my"
+    description = "Filme und Serien online kostenlos ansehen"
     authors = listOf("Bnyro")
 
     /**
@@ -19,6 +19,7 @@ cloudstream {
     status = 1 // will be 3 if unspecified
     tvTypes = listOf(
         "Movie",
+        "TvSeries"
     )
 
     iconUrl = "https://hdfilme.my/templates/hdfilme/images/logo-hdfilme.svg"

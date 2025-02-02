@@ -6,7 +6,7 @@ cloudstream {
     language = "de"
     // All of these properties are optional, you can safely remove them
 
-    description = "Include: XcineIO, Movie4k, Streamcloud"
+    description = "Enthält: XcineIO, Movie4k, Streamcloud"
     authors = listOf("Bnyro")
 
     /**
