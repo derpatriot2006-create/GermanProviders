@@ -2,10 +2,12 @@ package com.bnyro
 
 import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
+import com.lagradost.cloudstream3.mvvm.debugWarning
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
+import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.TextNode
 
@@ -17,6 +19,7 @@ open class HDFilme : MainAPI() {
     override val hasQuickSearch = true
     override val supportedTypes = setOf(TvType.Movie)
     override var mainUrl = "https://hdfilme.my"
+    private val streamsSourceUrl = "https://meinecloud.click"
 
     override suspend fun getMainPage(
         page: Int,
@@ -54,6 +57,37 @@ open class HDFilme : MainAPI() {
 
     private fun Element.getImageUrl(): String {
         return fixUrl(attr("data-src").ifEmpty { attr("src") })
+    }
+
+    private suspend fun extractStreamLinks(doc: Document): List<String> {
+        val streams = mutableListOf<String>()
+
+        try {
+            val streamsJsUrl =
+                doc.selectFirst("script[src^='$streamsSourceUrl/ddl']")!!.attr("src")
+
+            val streamsJs = app.get(streamsJsUrl).text
+            val streamLinkRegex = Regex("(?<=')http.*(?=')")
+            val links = streamLinkRegex.findAll(streamsJs).map { fixUrl(it.value) }
+            streams.addAll(links)
+        } catch (e: Exception) {
+            debugWarning { "Couldn't load streams JS!" }
+        }
+
+        try {
+            val htmlLinksUrl = doc.selectFirst("iframe[src^='$streamsSourceUrl/movie']")?.attr("src")
+                ?: throw NoSuchFieldException("Couldn't find link to iframe!")
+
+            val streamsDoc = app.get(htmlLinksUrl).document
+            val links = streamsDoc.select("._player-mirrors li").map {
+                fixUrl(it.attr("data-link"))
+            }
+            streams.addAll(links)
+        } catch (e: Exception) {
+            debugWarning { "Couldn't load streams IFrame!" }
+        }
+
+        return streams
     }
 
     override suspend fun load(url: String): LoadResponse? {
@@ -114,14 +148,7 @@ open class HDFilme : MainAPI() {
             }
         }
 
-        val streamsJsUrl =
-            doc.selectFirst("script[src^='https://meinecloud.click/ddl']")?.attr("src")
-                ?: throw NoSuchFieldException("Couldn't find link to streams!")
-
-        val streamsJs = app.get(streamsJsUrl).text
-        val streamLinkRegex = Regex("(?<=')http.*(?=')")
-        val streams = streamLinkRegex.findAll(streamsJs).map { it.value }.toList()
-
+        val streams = extractStreamLinks(doc)
         val related = doc.select("section.top-filme .listing a").map {
             newMovieSearchResponse(
                 name = it.attr("title"),

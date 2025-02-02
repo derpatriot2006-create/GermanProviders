@@ -12,7 +12,6 @@ class SupervideoTv: Supervideo() {
     override var mainUrl = "https://supervideo.tv"
 }
 
-
 class DroploadIo: Supervideo() {
     override var name = "DroploadIO"
     override var mainUrl = "https://dropload.io"
