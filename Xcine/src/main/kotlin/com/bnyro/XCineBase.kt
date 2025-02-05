@@ -5,7 +5,6 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
-import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
@@ -78,11 +77,9 @@ abstract class XCineBase : MainAPI() {
         val type = if (res.tv == 1) "tv" else "movie"
 
         val recommendations =
-            app.get("$mainAPI/data/related_movies/?lang=2&cat=$type&_id=$url&server=0").text.let {
-                tryParseJson<List<Media>>(it)
-            }?.mapNotNull {
-                it.toSearchResponse()
-            }
+            app.get("$mainAPI/data/related_movies/?lang=2&cat=$type&_id=$url&server=0")
+                .parsed<RecommendationsResponse>()
+                .mapNotNull { it.toSearchResponse() }
 
         val actors = when (res.cast) {
             is String -> res.cast.split(", ")
@@ -210,4 +207,6 @@ abstract class XCineBase : MainAPI() {
     data class MediaResponse(
         @JsonProperty("movies") val movies: ArrayList<Media>? = arrayListOf(),
     )
+
+    class RecommendationsResponse : ArrayList<Media>()
 }
