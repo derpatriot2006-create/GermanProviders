@@ -1,7 +1,6 @@
 package com.bnyro
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.lagradost.cloudstream3.AnimeSearchResponse
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -10,15 +9,16 @@ import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.apmap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.fixUrlNull
-import com.lagradost.cloudstream3.newAnimeSearchResponse
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
+import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import org.jsoup.nodes.Document
@@ -58,17 +58,14 @@ open class Serienstream : MainAPI() {
                 "x-requested-with" to "XMLHttpRequest"
             )
         )
-        return resp.parsed<List<AnimeSearch>>().filter {
-            !it.link.contains("episode-") && it.link.contains(
-                "/stream"
-            )
+        return resp.parsed<List<SearchItem>>().filter {
+            !it.link.contains("episode-") && it.link.contains("/stream")
         }.map {
-            newAnimeSearchResponse(
+            newTvSeriesSearchResponse(
                 it.title?.replace(Regex("</?em>"), "") ?: "",
                 fixUrl(it.link),
-                TvType.Anime
-            ) {
-            }
+                TvType.TvSeries
+            )
         }
     }
 
@@ -151,21 +148,22 @@ open class Serienstream : MainAPI() {
         return true
     }
 
-    private fun Element.toSearchResult(): AnimeSearchResponse? {
+    private fun Element.toSearchResult(): TvSeriesSearchResponse? {
         val href = fixUrlNull(this.selectFirst("a")?.attr("href")) ?: return null
         val title = this.selectFirst("h3")?.text() ?: return null
         val posterUrl = fixUrlNull(this.selectFirst("img")?.attr("data-src"))
-        return newAnimeSearchResponse(title, href, TvType.Anime) {
+
+        return newTvSeriesSearchResponse(title, href, TvType.TvSeries) {
             this.posterUrl = posterUrl
         }
     }
 
     private fun String.getLanguage(document: Document): String? {
-        return document.selectFirst("div.changeLanguageBox img[data-lang-key=$this]")?.attr("title")
-            ?.removePrefix("mit")?.trim()
+        return document.selectFirst("div.changeLanguageBox img[data-lang-key=$this]")
+            ?.attr("title")?.removePrefix("mit")?.trim()
     }
 
-    private data class AnimeSearch(
+    private data class SearchItem(
         @JsonProperty("link") val link: String,
         @JsonProperty("title") val title: String? = null,
     )
