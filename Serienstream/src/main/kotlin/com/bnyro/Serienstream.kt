@@ -40,10 +40,11 @@ open class Serienstream : MainAPI() {
 
         val homePageLists = document.select("div.carousel").map { ele ->
             val header = ele.selectFirst("h2")?.text() ?: return@map null
+
             val items = ele.select("div.coverListItem").mapNotNull {
                 it.toSearchResult()
             }
-            HomePageList(header, items)
+            HomePageList(header, items).takeIf { items.isNotEmpty() }
         }.filterNotNull()
 
         return newHomePageResponse(homePageLists, hasNext = false)
@@ -58,7 +59,7 @@ open class Serienstream : MainAPI() {
                 "x-requested-with" to "XMLHttpRequest"
             )
         )
-        return resp.parsed<List<SearchItem>>().filter {
+        return resp.parsed<SearchResp>().filter {
             !it.link.contains("episode-") && it.link.contains("/stream")
         }.map {
             newTvSeriesSearchResponse(
@@ -162,6 +163,8 @@ open class Serienstream : MainAPI() {
         return document.selectFirst("div.changeLanguageBox img[data-lang-key=$this]")
             ?.attr("title")?.removePrefix("mit")?.trim()
     }
+
+    private class SearchResp: ArrayList<SearchItem>()
 
     private data class SearchItem(
         @JsonProperty("link") val link: String,
