@@ -212,6 +212,39 @@ open class ARD : MainAPI() {
         }.flatten()
     }
 
+    private fun List<Teaser>.toEpisodeList(season: Widget, type: TvType): List<Episode> {
+        return this.mapIndexed { index, episode ->
+            episode.toEpisode(season, index + 1, type)
+        }
+    }
+
+    private suspend fun getEpisodesFromSeason(season: Widget, type: TvType): List<Episode> {
+        if (season.pagination == null || season.teasers.size == season.pagination.totalElements) {
+            return season.teasers.toEpisodeList(season, type)
+        }
+
+        // already fetched episodes need to be re-fetched here because the page size used differs
+        // by the default one used in embedded widget responses
+        var pageNumber = 0
+        val teasers = mutableListOf<Teaser>()
+        while (teasers.size < minOf(season.pagination.totalElements, MAX_SERIES_EPISODE_COUNT)) {
+            try {
+                val nextPageResponse = app.get(
+                    "https://api.ardmediathek.de/page-gateway/widgets/ard/asset/${season.id}?pageNumber=$pageNumber&pageSize=${MAX_PAGE_SIZE}&embedded=true"
+                ).parsed<Widget>()
+
+                teasers.addAll(nextPageResponse.teasers)
+            } catch (e: Exception) {
+                // stop fetching episode info on errors to avoid infinite loading times
+                break
+            }
+
+            pageNumber++
+        }
+
+        return teasers.ifEmpty { season.teasers }.toEpisodeList(season, type)
+    }
+
     private suspend fun loadSeries(url: String, seriesId: String): LoadResponse {
         val response = app.get(
             "${mainUrl}/page-gateway/pages/ard/grouping/${seriesId}?seasoned=true&embedded=true"
@@ -219,14 +252,10 @@ open class ARD : MainAPI() {
             .parsed<GroupingResponse>()
 
         val type = getType(response.coreAssetType)
-        val episodes =
-            response.widgets
-                .filter { it.compilationType?.startsWith("itemsOf") == true }
-                .map { season ->
-                    season.teasers.mapIndexed { index, episode ->
-                        episode.toEpisode(season, index + 1, type)
-                    }
-                }.flatten()
+        val episodes = response.widgets
+            .filter { it.compilationType?.startsWith("itemsOf") == true }
+            .apmap { season -> getEpisodesFromSeason(season, type) }
+            .flatten()
 
         return newTvSeriesLoadResponse(
             name = response.title,
@@ -482,7 +511,8 @@ open class ARD : MainAPI() {
         val size: String?,
         val seasonNumber: String?,
         val publicationService: PublicationService?,
-        val teasers: List<Teaser> = emptyList()
+        val teasers: List<Teaser> = emptyList(),
+        val pagination: Pagination?
     )
 
     data class Image(
@@ -598,6 +628,12 @@ open class ARD : MainAPI() {
         val synopsis: String?,
     )
 
+    data class Pagination(
+        val pageNumber: Int,
+        val pageSize: Int,
+        val totalElements: Int
+    )
+
     data class ProgramResponse(
         val links: Links,
         val channels: List<Channel>
@@ -613,5 +649,7 @@ open class ARD : MainAPI() {
         private const val PAGE_SIZE = 30
         private const val IMAGE_QUALITY = 1080
         private const val THUMBNAIL_QUALITY = 480
+        private const val MAX_PAGE_SIZE = 200
+        private const val MAX_SERIES_EPISODE_COUNT = 500
     }
 }
