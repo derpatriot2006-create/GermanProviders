@@ -86,6 +86,11 @@ open class ARD : MainAPI() {
     }
 
     private fun Teaser.getID() = this.links?.target?.id ?: this.id
+    private fun Teaser.getTags() = listOfNotNull(
+        maturityContentRating?.takeIf { it != "NONE" },
+        publicationService?.name,
+        publicationService?.publisherType
+    )
 
     override suspend fun getMainPage(
         page: Int,
@@ -232,6 +237,10 @@ open class ARD : MainAPI() {
             this.posterUrl = (response.heroImage ?: response.image)?.src
                 ?.let { getImageUrl(it, true) }
             this.plot = response.synopsis
+            this.tags = listOfNotNull(
+                response.publicationService?.name,
+                response.publicationService?.publisherType
+            )
             response.trailer?.links?.target?.id?.let {
                 addTrailer(ItemInfo(it, type).toJson())
             }
@@ -254,10 +263,33 @@ open class ARD : MainAPI() {
 
         val streamInfo = findPlayerInfo(response.widgets)
         val embedded = streamInfo?.mediaCollection?.embedded
+        val type = getType(response.coreAssetType)
+
+        // live broadcasted stream - show program information if available
+        if (type == TvType.Live) {
+            val programInformation = fetchProgramInformation()[episodeId]
+
+            if (programInformation != null) {
+                return newMovieLoadResponse(
+                    name = programInformation.title?.let { "$it (${response.title})" }
+                        ?: response.title,
+                    url = url,
+                    type = type,
+                    data = embedded?.toJson()
+                ) {
+                    this.posterUrl = programInformation.images.values.firstOrNull()?.src?.let {
+                        getImageUrl(it, true)
+                    }
+                    this.plot = programInformation.synopsis
+                    this.tags = programInformation.getTags()
+                }
+            }
+        }
+
         return newMovieLoadResponse(
             name = response.title,
             url = url,
-            type = getType(response.coreAssetType),
+            type = type,
             data = embedded?.toJson()
         ) {
             this.posterUrl = streamInfo?.image?.src?.let { getImageUrl(it, true) }
@@ -265,6 +297,11 @@ open class ARD : MainAPI() {
             this.duration = embedded?.meta?.durationSeconds?.div(60)?.toInt()
             this.comingSoon = embedded?.streams?.isEmpty() == true
             this.year = streamInfo?.broadcastedOn?.take(4)?.toIntOrNull()
+            this.tags = listOfNotNull(
+                streamInfo?.maturityContentRating?.takeIf { it != "NONE" },
+                streamInfo?.publicationService?.name,
+                streamInfo?.publicationService?.publisherType
+            )
         }
     }
 
@@ -385,7 +422,17 @@ open class ARD : MainAPI() {
         val title: String?,
         val show: Show?,
         val links: Links?,
-        val coreAssetType: String?
+        val coreAssetType: String?,
+        val synopsis: String?,
+        val maturityContentRating: String?,
+        @JsonProperty("publicationService")
+        @JsonAlias("channel")
+        val publicationService: PublicationService?
+    )
+
+    data class PublicationService(
+        val name: String? = null,
+        val publisherType: String? = null
     )
 
     data class Links(
@@ -434,6 +481,7 @@ open class ARD : MainAPI() {
         val compilationType: String?,
         val size: String?,
         val seasonNumber: String?,
+        val publicationService: PublicationService?,
         val teasers: List<Teaser> = emptyList()
     )
 
@@ -540,6 +588,7 @@ open class ARD : MainAPI() {
         val widgets: List<Widget> = emptyList(),
         val coreAssetType: String?,
         val trailer: Trailer?,
+        val publicationService: PublicationService?
     )
 
     data class Trailer(
