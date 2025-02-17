@@ -3,6 +3,7 @@ package com.bnyro
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import android.content.Context
+import com.lagradost.cloudstream3.extractors.FileMoonSx
 import com.lagradost.cloudstream3.extractors.Voe1
 
 @CloudstreamPlugin
@@ -13,5 +14,6 @@ class FilmpalastPlugin: Plugin() {
         registerExtractorAPI(Voe1())
         registerExtractorAPI(BigwarpIO())
         registerExtractorAPI(Ryderjet())
+        registerExtractorAPI(FileMoonSx())
     }
 }

@@ -3,13 +3,13 @@ package com.bnyro
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.USER_AGENT
 import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.base64DecodeArray
 import com.lagradost.cloudstream3.extractors.Supervideo
 import com.lagradost.cloudstream3.extractors.Vidguardto
 import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.INFER_TYPE
 import com.lagradost.cloudstream3.utils.Qualities
-import java.util.zip.Inflater
 
 open class Chillx : ExtractorApi() {
     override val name = "Chillx"
@@ -22,84 +22,88 @@ open class Chillx : ExtractorApi() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ) {
-        val res = app.get(url).toString()
-        val encodedString =
-            Regex("Encrypted\\s*=\\s*'(.*?)';").find(res)?.groupValues?.get(1).orEmpty()
-        val decoded = decodeEncryptedData(encodedString)
-
-        val m3u8 = Regex("file:\\s*\"(.*?)\"").find(decoded.orEmpty())?.groupValues?.get(1).orEmpty()
-        val header = mapOf(
-            "accept" to "*/*",
-            "accept-language" to "en-US,en;q=0.5",
-            "Origin" to mainUrl,
-            "Accept-Encoding" to "gzip, deflate, br",
-            "Connection" to "keep-alive",
-            "Sec-Fetch-Dest" to "empty",
-            "Sec-Fetch-Mode" to "cors",
-            "Sec-Fetch-Site" to "cross-site",
-            "user-agent" to USER_AGENT,
+        val headers = mapOf(
+            "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "Accept-Language" to "en-US,en;q=0.9",
         )
-        callback.invoke(
-            ExtractorLink(
-                name,
-                name,
-                m3u8,
-                mainUrl,
-                Qualities.P1080.value,
-                INFER_TYPE,
-                headers = header
+
+        try {
+            // Fetch the raw response from the URL
+            val res = app.get(url,referer=mainUrl,headers=headers).toString()
+
+            val encodedString = Regex("const\\s+\\w+\\s*=\\s*'(.*?)'").find(res)?.groupValues?.get(1) ?: ""
+            if (encodedString.isEmpty()) {
+                throw Exception("Encoded string not found")
+            }
+
+            // Decrypt the encoded string
+            val password = "l%sn3@bJvcg0IuJV"
+            val decryptedData = decryptXOR(encodedString, password)
+            // Extract the m3u8 URL from decrypted data
+            val m3u8 = Regex("\"?file\"?:\\s*\"([^\"]+)").find(decryptedData)?.groupValues?.get(1)?.trim() ?: ""
+            if (m3u8.isEmpty()) {
+                throw Exception("m3u8 URL not found")
+            }
+
+            // Prepare headers
+            val header = mapOf(
+                "accept" to "*/*",
+                "accept-language" to "en-US,en;q=0.5",
+                "Origin" to mainUrl,
+                "Accept-Encoding" to "gzip, deflate, br",
+                "Connection" to "keep-alive",
+                "Sec-Fetch-Dest" to "empty",
+                "Sec-Fetch-Mode" to "cors",
+                "Sec-Fetch-Site" to "cross-site",
+                "user-agent" to USER_AGENT
             )
-        )
 
-        val subtitles = extractSrtSubtitles(decoded.orEmpty())
-        subtitles.forEachIndexed { _, (language, url) ->
-            subtitleCallback.invoke(SubtitleFile(language, url))
+            // Return the extractor link
+            callback.invoke(
+                ExtractorLink(
+                    name,
+                    name,
+                    m3u8,
+                    mainUrl,
+                    Qualities.P1080.value,
+                    INFER_TYPE,
+                    headers = header
+                )
+            )
+
+            // Extract and return subtitles
+            val subtitles = extractSrtSubtitles(decryptedData)
+            subtitles.forEachIndexed { _, (language, url) ->
+                subtitleCallback.invoke(SubtitleFile(language, url))
+            }
+
+        } catch (e: Exception) {
+            println("Error: ${e.message}")
         }
     }
 
     private fun extractSrtSubtitles(subtitle: String): List<Pair<String, String>> {
         val regex = """\[([^]]+)](https?://[^\s,]+\.srt)""".toRegex()
-
         return regex.findAll(subtitle).map { match ->
             val (language, url) = match.destructured
             language.trim() to url.trim()
         }.toList()
     }
 
-
-    private fun decodeEncryptedData(encryptedString: String?): String? {
-        if (encryptedString == null) return null
-
+    private fun decryptXOR(encryptedData: String, password: String): String {
         return try {
-            val decodedBytes =
-                android.util.Base64.decode(encryptedString, android.util.Base64.DEFAULT)
+            val decodedBytes = base64DecodeArray(encryptedData)
+            val keyBytes = decodedBytes.copyOfRange(0, 16)
+            val dataBytes = decodedBytes.copyOfRange(16, decodedBytes.size)
+            val passwordBytes = password.toByteArray(Charsets.UTF_8)
 
-            val decodedCharacters = decodedBytes.map { byte ->
-                val binaryRepresentation = byte.toUByte().toString(2).padStart(8, '0')
-                val reversedBinary = binaryRepresentation.reversed()
-                reversedBinary.toInt(2).toByte()
+            val decryptedBytes = ByteArray(dataBytes.size) { i ->
+                (dataBytes[i].toInt() xor passwordBytes[i % passwordBytes.size].toInt() xor keyBytes[i % keyBytes.size].toInt()).toByte()
             }
-            val byteArray = ByteArray(decodedCharacters.size) { decodedCharacters[it] }
-            val decompressedData = Inflater().run {
-                setInput(byteArray)
-                val output = ByteArray(1024 * 4)
-                val decompressedSize = inflate(output)
-                output.copyOf(decompressedSize).toString(Charsets.UTF_8)
-            }
-            val specialToAlphabetMap = mapOf(
-                '!' to 'a', '@' to 'b', '#' to 'c', '$' to 'd', '%' to 'e',
-                '^' to 'f', '&' to 'g', '*' to 'h', '(' to 'i', ')' to 'j'
-            )
-            val processedData = decompressedData.map { char ->
-                specialToAlphabetMap[char] ?: char
-            }.joinToString("")
-            val finalDecodedData =
-                android.util.Base64.decode(processedData, android.util.Base64.DEFAULT)
-                    .toString(Charsets.UTF_8)
-            finalDecodedData
+
+            String(decryptedBytes, Charsets.UTF_8)
         } catch (e: Exception) {
-            println("Error decoding string: ${e.message}")
-            null
+            "Decryption Failed"
         }
     }
 }
@@ -117,9 +121,4 @@ class KinogerBe : Supervideo() {
 class KinogerPw : Vidguardto() {
     override var name = "KinogerPw"
     override var mainUrl = "https://kinoger.pw"
-}
-
-class KinogerRe : Vidguardto() {
-    override var name = "KinogerRe"
-    override var mainUrl = "https://kinoger.re"
 }
