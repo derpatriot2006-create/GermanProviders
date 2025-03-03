@@ -70,7 +70,7 @@ open class NetzkinoProvider : MainAPI() {
         ) {
             this.posterUrl = response.customFields.featuredImgAll.firstOrNull() ?: response.thumbnail
             this.plot = response.content
-            this.duration = response.customFields.duration.firstOrNull()?.toIntOrNull()
+            this.duration = response.customFields.duration.firstOrNull()?.toIntOrNull()?.div(60)
             this.year = response.customFields.jahr.firstOrNull()?.toIntOrNull()
             this.rating = response.customFields.imdbBewertung.firstOrNull()?.toFloatOrNull()?.roundToInt()
             addActors(response.customFields.stars.map { it.split(",") }.flatten())
