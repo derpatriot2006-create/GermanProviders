@@ -15,5 +15,8 @@ class FilmpalastPlugin: Plugin() {
         registerExtractorAPI(BigwarpIO())
         registerExtractorAPI(Ryderjet())
         registerExtractorAPI(FileMoonSx())
+        registerExtractorAPI(Dhtpre())
+        registerExtractorAPI(Peytonepre())
+        registerExtractorAPI(AbstreamTo())
     }
 }
