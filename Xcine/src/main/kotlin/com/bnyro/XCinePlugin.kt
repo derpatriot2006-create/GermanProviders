@@ -47,5 +47,6 @@ class XCinePlugin: Plugin() {
         registerExtractorAPI(Mixdrp())
         registerExtractorAPI(Luluvdo())
         registerExtractorAPI(Ryderjet())
+        registerExtractorAPI(StreamRuby())
     }
 }

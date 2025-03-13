@@ -64,3 +64,8 @@ class Ryderjet: Supervideo() {
     override var name = "Ryderjet"
     override var mainUrl = "https://ryderjet.com"
 }
+
+class StreamRuby: StreamWishExtractor() {
+    override var name = "Streamruby"
+    override var mainUrl = "https://streamruby.com"
+}
