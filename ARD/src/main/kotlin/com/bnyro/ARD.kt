@@ -129,8 +129,9 @@ open class ARD : MainAPI() {
         val now = Calendar.getInstance().time
         val todayDate = dateFormatter.format(now)
 
-        val programToday = app.get("$programApiUrl/program/api/program?day=${todayDate}")
-            .parsed<ProgramResponse>()
+        // this works around in apparent bug in NiceHTTP that fails to properly load larger text responses
+        val programTodayResp = app.get("$programApiUrl/program/api/program?day=${todayDate}")
+        val programToday = parseJson<ProgramResponse>(programTodayResp.body.string())
 
         val program = mutableMapOf<String, Teaser>()
         for (channel in programToday.channels) {
