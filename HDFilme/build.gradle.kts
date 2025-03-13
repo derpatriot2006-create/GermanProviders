@@ -22,5 +22,5 @@ cloudstream {
         "TvSeries"
     )
 
-    iconUrl = "https://hdfilme.my/templates/hdfilme/images/logo-hdfilme.svg"
+    iconUrl = "https://hdfilme.my/templates/hdfilme/images/favicon-%size%x%size%.png"
 }

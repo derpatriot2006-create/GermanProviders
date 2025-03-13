@@ -23,5 +23,5 @@ cloudstream {
         "Live"
     )
 
-    iconUrl = "https://upload.wikimedia.org/wikipedia/commons/d/d1/ARD_Dachmarke_2014.svg"
+    iconUrl = "https://www.google.com/s2/favicons?domain=https://ardmediathek.de&sz=%size%"
 }
