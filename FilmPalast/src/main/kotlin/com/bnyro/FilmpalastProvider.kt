@@ -30,8 +30,8 @@ class FilmpalastProvider : MainAPI() {
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val response = app.get("$mainUrl/${request.data}/page/${page}/").document
-        val results = response.select("#content .liste.rb").mapNotNull {
+        val response = app.get("$mainUrl/${request.data}/page/${page}").document
+        val results = response.select("#content article.liste").mapNotNull {
             it.toSearchResponse()
         }
 
