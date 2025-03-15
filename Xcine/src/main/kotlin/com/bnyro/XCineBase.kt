@@ -77,7 +77,7 @@ abstract class XCineBase : MainAPI() {
         val type = if (res.tv == 1) "tv" else "movie"
 
         val recommendations =
-            app.get("$mainAPI/data/related_movies/?lang=2&cat=$type&_id=$url&server=0")
+            app.get("$mainAPI/data/related_movies/?lang=2&cat=$type&_id=$id")
                 .parsed<RecommendationsResponse>()
                 .mapNotNull { it.toSearchResponse() }
 
