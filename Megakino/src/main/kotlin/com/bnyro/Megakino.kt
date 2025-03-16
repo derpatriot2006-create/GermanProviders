@@ -8,7 +8,7 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import org.jsoup.nodes.Element
 
 class Megakino : MainAPI() {
-    override var mainUrl = "https://megakino.team"
+    override var mainUrl = "https://megakino.tube"
     override var name = "Megakino"
     override val hasMainPage = true
     override var lang = "de"
