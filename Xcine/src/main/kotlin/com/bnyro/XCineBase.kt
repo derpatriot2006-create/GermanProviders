@@ -1,8 +1,24 @@
 package com.bnyro
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.ErrorLoadingException
+import com.lagradost.cloudstream3.HomePageResponse
+import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.LoadResponse.Companion.addActors
+import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SubtitleFile
+import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.apmap
+import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.fixUrlNull
+import com.lagradost.cloudstream3.mainPageOf
+import com.lagradost.cloudstream3.newEpisode
+import com.lagradost.cloudstream3.newHomePageResponse
+import com.lagradost.cloudstream3.newMovieLoadResponse
+import com.lagradost.cloudstream3.newTvSeriesLoadResponse
+import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -45,15 +61,13 @@ abstract class XCineBase : MainAPI() {
     }
 
     private fun Media.toSearchResponse(): SearchResponse? {
-        return newAnimeSearchResponse(
+        return newTvSeriesSearchResponse(
             title ?: originalTitle ?: return null,
             ItemData(id).toJson(),
             TvType.TvSeries,
             false
         ) {
-            this.posterUrl = getImageUrl(posterPath ?: backdropPath)
-            addDub(lastUpdatedEpi?.toIntOrNull())
-            addSub(totalEpisodes?.toIntOrNull())
+            this.posterUrl = getImageUrl(posterSeasonPath ?: posterPath ?: backdropPath)
         }
     }
 
@@ -74,7 +88,7 @@ abstract class XCineBase : MainAPI() {
         val requestUrl = "$mainAPI/data/watch/?_id=$id"
         val res = app.get(requestUrl, referer = "$mainUrl/")
             .parsed<MediaDetail>()
-        val type = if (res.tv == 1) "tv" else "movie"
+        val type = if (res.tv == 1) TvType.TvSeries else TvType.Movie
 
         val recommendations =
             app.get("$mainAPI/data/related_movies/?lang=2&cat=$type&_id=$id")
@@ -87,7 +101,8 @@ abstract class XCineBase : MainAPI() {
             else -> emptyList()
         }
 
-        return if (type == "tv") {
+        val posterUrl = getImageUrl(res.backdropPath ?: res.posterPath)
+        return if (type == TvType.TvSeries) {
             val episodes = res.streams?.groupBy { it.e }?.mapNotNull { eps ->
                 val loadData = LoadData(eps.value.mapNotNull { it.stream }).toJson()
 
@@ -103,7 +118,7 @@ abstract class XCineBase : MainAPI() {
                 TvType.TvSeries,
                 episodes
             ) {
-                this.posterUrl = getImageUrl(res.backdropPath ?: res.posterPath)
+                this.posterUrl = posterUrl
                 this.year = res.year
                 this.plot = res.storyline ?: res.overview
                 this.tags = listOf(res.genres ?: "")
@@ -118,7 +133,7 @@ abstract class XCineBase : MainAPI() {
                 TvType.Movie,
                 LoadData(res.streams?.mapNotNull { it.stream }.orEmpty()).toJson()
             ) {
-                this.posterUrl = getImageUrl(res.backdropPath ?: res.posterPath)
+                this.posterUrl = posterUrl
                 this.year = res.year
                 this.plot = res.storyline ?: res.overview
                 this.tags = listOf(res.genres ?: "")
@@ -198,10 +213,8 @@ abstract class XCineBase : MainAPI() {
         @JsonProperty("title") val title: String? = null,
         @JsonProperty("poster_path") val posterPath: String? = null,
         @JsonProperty("backdrop_path") val backdropPath: String? = null,
-        @JsonProperty("img") val img: String? = null,
+        @JsonProperty("poster_season_path") val posterSeasonPath: String? = null,
         @JsonProperty("imdb_id") val imdbId: String? = null,
-        @JsonProperty("totalEpisodes") val totalEpisodes: String? = null,
-        @JsonProperty("last_updated_epi") val lastUpdatedEpi: String? = null,
     )
 
     data class MediaResponse(
