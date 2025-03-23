@@ -16,6 +16,7 @@ class FilmpalastProvider : MainAPI() {
     override val hasMainPage = true
 
     override val mainPage: List<MainPageData> = mainPageOf(
+        "" to "Neu",
         "movies/top" to "Filme",
         "serien/view" to "Serien"
     )

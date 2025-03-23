@@ -9,7 +9,6 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import org.jsoup.nodes.TextNode
 
 open class HDFilme : MainAPI() {
     override var name = "HDFilme"
@@ -29,10 +28,20 @@ open class HDFilme : MainAPI() {
         val recommendations = doc.select("#dle-content div.item")
             .map { it.toSearchResponse() }
 
-        return newHomePageResponse(
-            HomePageList(name = "Recommended", recommendations),
-            hasNext = true
-        )
+        val homePageLists = mutableListOf(HomePageList("Recommended", recommendations))
+
+        // the list of new items is the same at each page, thus we only return it the first time
+        if (page == 1) {
+            for (recentSection in doc.select("section.top-filme")) {
+                val title = recentSection.select(".heading").text()
+                val items = doc.select(".listing a").map {
+                    it.toRelatedSearchResponse()
+                }
+                homePageLists.add(HomePageList(title, items))
+            }
+        }
+
+        return newHomePageResponse(homePageLists, hasNext = true)
     }
 
     private fun Element.toSearchResponse(): SearchResponse {
@@ -44,6 +53,16 @@ open class HDFilme : MainAPI() {
         return newMovieSearchResponse(title, type = TvType.Movie, url = url).apply {
             this.posterUrl = posterUrl
             this.year = metaList.firstOrNull()?.text()?.toIntOrNull()
+        }
+    }
+
+    private fun Element.toRelatedSearchResponse(): SearchResponse {
+        return newMovieSearchResponse(
+            name = attr("title"),
+            url = attr("href"),
+            type = TvType.Movie
+        ) {
+            this.posterUrl = selectFirst("figure img")?.getImageUrl()
         }
     }
 
@@ -75,8 +94,9 @@ open class HDFilme : MainAPI() {
         }
 
         try {
-            val htmlLinksUrl = doc.selectFirst("iframe[src^='$streamsSourceUrl/movie']")?.attr("src")
-                ?: throw NoSuchFieldException("Couldn't find link to iframe!")
+            val htmlLinksUrl =
+                doc.selectFirst("iframe[src^='$streamsSourceUrl/movie']")?.attr("src")
+                    ?: throw NoSuchFieldException("Couldn't find link to iframe!")
 
             val streamsDoc = app.get(htmlLinksUrl).document
             val links = streamsDoc.select("._player-mirrors li").map {
@@ -150,13 +170,7 @@ open class HDFilme : MainAPI() {
 
         val streams = extractStreamLinks(doc)
         val related = doc.select("section.top-filme .listing a").map {
-            newMovieSearchResponse(
-                name = it.attr("title"),
-                url = it.attr("href"),
-                type = TvType.Movie
-            ) {
-                this.posterUrl = it.selectFirst("figure img")?.getImageUrl()
-            }
+            it.toRelatedSearchResponse()
         }
 
         return newMovieLoadResponse(
