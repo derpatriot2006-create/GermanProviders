@@ -33,8 +33,8 @@ open class HDFilme : MainAPI() {
         // the list of new items is the same at each page, thus we only return it the first time
         if (page == 1) {
             for (recentSection in doc.select("section.top-filme")) {
-                val title = recentSection.select(".heading").text()
-                val items = doc.select(".listing a").map {
+                val title = fixTitle(recentSection.select(".heading").text())
+                val items = recentSection.select(".listing a").map {
                     it.toRelatedSearchResponse()
                 }
                 homePageLists.add(HomePageList(title, items))

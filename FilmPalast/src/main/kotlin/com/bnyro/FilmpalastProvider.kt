@@ -17,21 +17,22 @@ class FilmpalastProvider : MainAPI() {
 
     override val mainPage: List<MainPageData> = mainPageOf(
         "" to "Neu",
-        "movies/top" to "Filme",
-        "serien/view" to "Serien"
+        "/movies/top" to "Filme",
+        "/serien/view" to "Serien"
     )
 
     private fun Element.toSearchResponse(): SearchResponse {
-        val title = select("cite a.rb").text()
-        val url = select("a.rb").attr("href")
-        val posterPath = select("img.cover-opacity").attr("src")
+        val title = selectFirst("a")?.attr("title").orEmpty()
+        val url = selectFirst("a")?.attr("href").orEmpty()
+        val posterPath = selectFirst("img[src^='/files']")?.attr("src")
+
         return newMovieSearchResponse(title, type = TvType.Movie, url = url).apply {
             this.posterUrl = "$mainUrl$posterPath"
         }
     }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val response = app.get("$mainUrl/${request.data}/page/${page}").document
+        val response = app.get("$mainUrl${request.data}/page/${page}").document
         val results = response.select("#content article.liste").mapNotNull {
             it.toSearchResponse()
         }
