@@ -27,6 +27,7 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.newExtractorLink
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -370,14 +371,14 @@ open class ARD : MainAPI() {
         val liveStream = tryParseJson<LiveStream>(data)?.takeIf { it.url.isNotBlank() }
         if (liveStream != null) {
             callback.invoke(
-                ExtractorLink(
+                newExtractorLink(
                     source = liveStream.name,
                     name = liveStream.name,
-                    url = liveStream.url,
-                    referer = "$mainUrl/",
-                    quality = Qualities.P1080.value,
-                    isM3u8 = true
-                )
+                    url = liveStream.url
+                ) {
+                    referer = "$mainUrl/"
+                    quality = Qualities.P1080.value
+                }
             )
             return true
         }
@@ -394,14 +395,14 @@ open class ARD : MainAPI() {
         for (stream in embedded.streams) {
             for (media in stream.media) {
                 callback.invoke(
-                    ExtractorLink(
+                    newExtractorLink(
                         name = "ARD ${media.forcedLabel} (${stream.kind})",
                         source = "ARD",
-                        quality = media.maxVresolutionPx?.toInt() ?: Qualities.Unknown.value,
-                        url = media.url,
-                        referer = mainUrl,
-                        isM3u8 = media.url.endsWith("m3u8")
-                    )
+                        url = media.url
+                    ) {
+                        quality = media.maxVresolutionPx?.toInt() ?: Qualities.Unknown.value
+                        referer = mainUrl
+                    }
                 )
             }
         }
