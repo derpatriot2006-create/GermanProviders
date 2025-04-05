@@ -76,7 +76,7 @@ subprojects {
         // but you dont need to include any of them if you dont need them
         // https://github.com/recloudstream/cloudstream/blob/master/app/build.gradle
         implementation(kotlin("stdlib")) // adds standard kotlin features
-        implementation("com.github.Blatzar:NiceHttp:0.4.11") // http library
+        implementation("com.github.Blatzar:NiceHttp:0.4.13") // http library
         implementation("org.jsoup:jsoup:1.18.1") // html parser
         implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
         implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
