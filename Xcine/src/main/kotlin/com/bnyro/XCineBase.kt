@@ -10,7 +10,7 @@ import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
-import com.lagradost.cloudstream3.apmap
+import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.fixUrlNull
 import com.lagradost.cloudstream3.mainPageOf
@@ -152,8 +152,8 @@ abstract class XCineBase : MainAPI() {
     ): Boolean {
         val loadData = parseJson<LoadData>(data)
 
-        loadData.links.apmap {
-            val link = fixUrlNull(it) ?: return@apmap null
+        loadData.links.amap {
+            val link = fixUrlNull(it) ?: return@amap null
             if (link.startsWith("https://dl.streamcloud")) {
                 callback.invoke(
                     ExtractorLink(

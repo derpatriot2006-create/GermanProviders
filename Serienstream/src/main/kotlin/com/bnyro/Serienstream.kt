@@ -11,7 +11,7 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
-import com.lagradost.cloudstream3.apmap
+import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.fixUrlNull
@@ -124,9 +124,7 @@ open class Serienstream : MainAPI() {
                 it.attr("data-link-target"),
                 it.select("h4").text()
             )
-        }.filter {
-            it.third != "Vidoza"
-        }.apmap {
+        }.amap {
             val redirectUrl = app.get(fixUrl(it.second)).url
             val lang = it.first.getLanguage(document)
             val name = "${it.third} [${lang}]"

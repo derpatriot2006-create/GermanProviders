@@ -118,7 +118,7 @@ class Kinoger : MainAPI() {
     ): Boolean {
         val links = parseJson<LinkData>(data).links
 
-        links.apmap { link ->
+        links.amap { link ->
             loadExtractor(link, "$mainUrl/", subtitleCallback, callback)
         }
 

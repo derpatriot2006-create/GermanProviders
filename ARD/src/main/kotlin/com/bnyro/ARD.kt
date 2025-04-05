@@ -12,7 +12,7 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.addDate
-import com.lagradost.cloudstream3.apmap
+import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newEpisode
@@ -205,7 +205,7 @@ open class ARD : MainAPI() {
     override suspend fun quickSearch(query: String): List<SearchResponse> = search(query)
 
     override suspend fun search(query: String): List<SearchResponse> {
-        return listOf("shows", "vods").apmap { type ->
+        return listOf("shows", "vods").amap { type ->
             app.get("$mainUrl/search-system/search/${type}/ard?query=${query}&pageSize=${PAGE_SIZE}&platform=MEDIA_THEK&sortingCriteria=SCORE_DESC")
                 .parsed<Search>()
                 .teasers
@@ -255,7 +255,7 @@ open class ARD : MainAPI() {
         val type = getType(response.coreAssetType)
         val episodes = response.widgets
             .filter { it.compilationType?.startsWith("itemsOf") == true }
-            .apmap { season -> getEpisodesFromSeason(season, type) }
+            .amap { season -> getEpisodesFromSeason(season, type) }
             .flatten()
 
         return newTvSeriesLoadResponse(

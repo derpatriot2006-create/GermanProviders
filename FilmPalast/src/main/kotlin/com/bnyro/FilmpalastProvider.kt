@@ -78,8 +78,8 @@ class FilmpalastProvider : MainAPI() {
     ): Boolean {
         val links = parseJson<LoadData>(data).links
 
-        links.apmap {
-            val link = fixUrlNull(it) ?: return@apmap null
+        links.amap {
+            val link = fixUrlNull(it) ?: return@amap null
             loadExtractor(link, "$mainUrl/", subtitleCallback, callback)
         }
         return links.isNotEmpty()

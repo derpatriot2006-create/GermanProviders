@@ -189,9 +189,9 @@ open class Moflix : MainAPI() {
             json.urls
         }
 
-        iframes?.apmap { iframe ->
+        iframes?.amap { iframe ->
             loadCustomExtractor(
-                iframe.src ?: return@apmap,
+                iframe.src ?: return@amap,
                 "$mainUrl/",
                 subtitleCallback,
                 callback,
