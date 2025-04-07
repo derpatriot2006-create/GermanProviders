@@ -13,6 +13,8 @@ class MoflixPlugin: Plugin() {
         registerMainAPI(Moflix())
         registerExtractorAPI(MoflixClick())
         registerExtractorAPI(MoflixFans())
+        registerExtractorAPI(MoflixUpns())
+        registerExtractorAPI(MoflixRpmplay())
         registerExtractorAPI(DoodstreamCom())
     }
 }
