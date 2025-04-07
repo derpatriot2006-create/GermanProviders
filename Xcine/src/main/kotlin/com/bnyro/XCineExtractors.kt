@@ -26,11 +26,6 @@ class DoodRe: DoodLaExtractor() {
     override var mainUrl = "https://dood.re"
 }
 
-class MixVideo: Supervideo() {
-    override var name = "Mixvideo"
-    override var mainUrl = "https://mixvideo.co"
-}
-
 class SupervideoTv: Supervideo() {
     override var name = "SupervideoTv"
     override var mainUrl = "https://supervideo.tv"
@@ -41,7 +36,7 @@ class DroploadIo: Supervideo() {
     override var mainUrl = "https://dropload.io"
 }
 
-open class BigwarpIO: Supervideo() {
+open class BigwarpIO: StreamWishExtractor() {
     override var name = "Bigwarp"
     override var mainUrl = "https://bigwarp.io"
 }
@@ -78,7 +73,7 @@ class StreamRuby: StreamWishExtractor() {
     override var mainUrl = "https://streamruby.com"
 }
 
-class SaveFiles: Supervideo() {
+class SaveFiles: StreamWishExtractor() {
     override var name = "SaveFiles"
     override var mainUrl = "https://savefiles.com"
 }

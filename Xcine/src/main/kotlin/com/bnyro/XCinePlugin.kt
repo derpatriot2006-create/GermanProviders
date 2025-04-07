@@ -37,7 +37,6 @@ class XCinePlugin: Plugin() {
         registerExtractorAPI(DoodsPro())
         registerExtractorAPI(DoodRe())
         registerExtractorAPI(DoodWsExtractor())
-        registerExtractorAPI(MixVideo())
         registerExtractorAPI(DoodLiExtractor())
         registerExtractorAPI(SupervideoTv())
         registerExtractorAPI(DroploadIo())

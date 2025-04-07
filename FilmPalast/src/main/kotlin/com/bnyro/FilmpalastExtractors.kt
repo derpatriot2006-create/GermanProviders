@@ -3,7 +3,7 @@ package com.bnyro
 import com.lagradost.cloudstream3.extractors.StreamWishExtractor
 import com.lagradost.cloudstream3.extractors.Supervideo
 
-class BigwarpIO: Supervideo() {
+class BigwarpIO: StreamWishExtractor() {
     override var name = "Bigwarp"
     override var mainUrl = "https://bigwarp.io"
 }
