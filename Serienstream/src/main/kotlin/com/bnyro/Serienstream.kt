@@ -84,15 +84,18 @@ open class Serienstream : MainAPI() {
             document.select("li:contains(Schauspieler:) ul li a").map { it.select("span").text() }
 
         val episodes = document.select("div#stream > ul:first-child li").mapNotNull { ele ->
-            val page = ele.selectFirst("a") ?: return@mapNotNull null
-            val epsDocument = app.get(fixUrl(page.attr("href"))).document
+            val seasonLink = ele.selectFirst("a") ?: return@mapNotNull null
+            val seasonNumber = seasonLink.text().toIntOrNull()
+            val seasonDocument = app.get(fixUrl(seasonLink.attr("href"))).document
 
-            epsDocument.select("div#stream > ul:nth-child(4) li").map { eps ->
+            seasonDocument.select("table.seasonEpisodesList tbody tr").map { eps ->
                 newEpisode(
                     fixUrl(eps.selectFirst("a")?.attr("href") ?: return@map null),
                 ) {
-                    this.episode = eps.selectFirst("a")?.text()?.toIntOrNull()
-                    this.season = page.text().toIntOrNull()
+                    this.episode = eps.selectFirst("meta[itemprop=episodeNumber]")
+                        ?.attr("content")?.toIntOrNull()
+                    this.name = eps.selectFirst(".seasonEpisodeTitle")?.text()
+                    this.season = seasonNumber
                 }
             }.filterNotNull()
         }.flatten()
