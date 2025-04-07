@@ -47,15 +47,17 @@ class Kinoger : MainAPI() {
 
     private fun Element.toSearchResult(): SearchResponse? {
         val href = getProperLink(this.selectFirst("a")?.attr("href") ?: return null)
-        val title = this.selectFirst("a")?.text() ?: this.selectFirst("img")?.attr("alt")
-        ?: this.selectFirst("a")?.attr("title") ?: return null
-        val posterUrl = fixUrlNull(
-            (this.selectFirst("div.content_text img") ?: this.nextElementSibling()
-                ?.selectFirst("div.content_text img") ?: this.selectFirst("img"))?.getImageAttr()
-        )
+        val title = this.selectFirst("a")?.text()?.removeSuffix(" Film")
+            ?: this.selectFirst("img")?.attr("alt")
+            ?: this.selectFirst("a")?.attr("title")
+            ?: return null
 
-        return newTvSeriesSearchResponse(title, href, TvType.AsianDrama) {
-            this.posterUrl = posterUrl
+        val posterPath = this.selectFirst("div.content_text img")?.getImageAttr()
+            ?: this.nextElementSibling()?.selectFirst("div.content_text img")?.getImageAttr()
+            ?: this.selectFirst("img")?.getImageAttr()
+
+        return newTvSeriesSearchResponse(title, href, TvType.TvSeries) {
+            this.posterUrl = fixUrlNull(posterPath)
         }
     }
 
