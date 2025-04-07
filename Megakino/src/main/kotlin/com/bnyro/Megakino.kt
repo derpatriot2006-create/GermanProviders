@@ -23,12 +23,10 @@ import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
-import com.lagradost.nicehttp.NiceResponse
 import org.jsoup.nodes.Element
-import java.net.URL
 
 class Megakino : MainAPI() {
-    override var mainUrl = "https://megakino.style"
+    override var mainUrl = "https://megakino.loan"
     override var name = "Megakino"
     override val hasMainPage = true
     override var lang = "de"
@@ -41,29 +39,8 @@ class Megakino : MainAPI() {
         "documentary" to "Dokumentationen",
     )
 
-    /**
-     * Due to very frequent domain name changes, this method tries to follow the redirect
-     * from the old domain to the new domain and updates the main url
-     */
-    private suspend fun fetchPage(
-        oldRequestUrl: String,
-        method: String = "GET",
-        data: Map<String, String>? = null
-    ): NiceResponse {
-        val requestUrl = mainUrl + URL(oldRequestUrl).path
-
-        val resp = app.custom(url = requestUrl, method = method, data = data)
-
-        if (resp.url == requestUrl) {
-            return resp
-        }
-
-        mainUrl = URL(resp.url).protocol + "://" + URL(resp.url).authority
-        return app.get(mainUrl + URL(requestUrl).path)
-    }
-
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = fetchPage("$mainUrl/${request.data}/page/$page").document
+        val document = app.get("$mainUrl/${request.data}/page/$page").document
         val home = document.select("#dle-content > a").mapNotNull {
             it.toSearchResult()
         }
@@ -91,7 +68,7 @@ class Megakino : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> {
         val data =
             mapOf("do" to "search", "subaction" to "search", "story" to query.replace(" ", "+"))
-        val response = fetchPage(mainUrl, method = "POST", data = data).document
+        val response = app.post(mainUrl, data = data).document
 
         return response.select("a.poster.grid-item").map {
             it.toSearchResult()
@@ -99,7 +76,7 @@ class Megakino : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = fetchPage(url).document
+        val document = app.get(url).document
         val title = document.selectFirst("div.page__subcols.d-flex h1")?.text() ?: "Unknown"
         val description = document.selectFirst("div.page__cols.d-flex p")?.text()
         val poster =
