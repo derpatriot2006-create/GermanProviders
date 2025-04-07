@@ -4,7 +4,7 @@ import com.lagradost.cloudstream3.extractors.StreamWishExtractor
 import com.lagradost.cloudstream3.extractors.Supervideo
 
 class BigwarpIO: Supervideo() {
-    override var name = "BitwarpIO"
+    override var name = "Bigwarp"
     override var mainUrl = "https://bigwarp.io"
 }
 

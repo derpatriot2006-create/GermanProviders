@@ -42,11 +42,14 @@ class XCinePlugin: Plugin() {
         registerExtractorAPI(SupervideoTv())
         registerExtractorAPI(DroploadIo())
         registerExtractorAPI(BigwarpIO())
+        registerExtractorAPI(BgwpCC())
+        registerExtractorAPI(BigwarpArt())
         registerExtractorAPI(GoofyBanana())
         registerExtractorAPI(Lulustream2())
         registerExtractorAPI(Mixdrp())
         registerExtractorAPI(Luluvdo())
         registerExtractorAPI(Ryderjet())
         registerExtractorAPI(StreamRuby())
+        registerExtractorAPI(SaveFiles())
     }
 }

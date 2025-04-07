@@ -41,9 +41,17 @@ class DroploadIo: Supervideo() {
     override var mainUrl = "https://dropload.io"
 }
 
-class BigwarpIO: Supervideo() {
-    override var name = "BitwarpIO"
+open class BigwarpIO: Supervideo() {
+    override var name = "Bigwarp"
     override var mainUrl = "https://bigwarp.io"
+}
+
+class BgwpCC: BigwarpIO() {
+    override var mainUrl = "https://bgwp.cc"
+}
+
+class BigwarpArt: BigwarpIO() {
+    override var mainUrl = "https://bigwarp.art"
 }
 
 class GoofyBanana: Voe() {
@@ -68,4 +76,9 @@ class Ryderjet: Supervideo() {
 class StreamRuby: StreamWishExtractor() {
     override var name = "Streamruby"
     override var mainUrl = "https://streamruby.com"
+}
+
+class SaveFiles: Supervideo() {
+    override var name = "SaveFiles"
+    override var mainUrl = "https://savefiles.com"
 }
