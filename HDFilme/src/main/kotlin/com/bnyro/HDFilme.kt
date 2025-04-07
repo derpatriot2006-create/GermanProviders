@@ -18,7 +18,7 @@ open class HDFilme : MainAPI() {
     override val hasQuickSearch = true
     override val supportedTypes = setOf(TvType.Movie)
     override var mainUrl = "https://hdfilme.my"
-    private val streamsSourceUrl = "https://meinecloud.click"
+    open val streamsSourceUrl = "https://play.meinecloud.click"
 
     override suspend fun getMainPage(
         page: Int,
@@ -86,7 +86,7 @@ open class HDFilme : MainAPI() {
                 doc.selectFirst("script[src^='$streamsSourceUrl/ddl']")!!.attr("src")
 
             val streamsJs = app.get(streamsJsUrl).text
-            val streamLinkRegex = Regex("(?<=')http.*(?=')")
+            val streamLinkRegex = """(?<=\\')http.*(?=\\')""".toRegex()
             val links = streamLinkRegex.findAll(streamsJs).map { fixUrl(it.value) }
             streams.addAll(links)
         } catch (e: Exception) {
