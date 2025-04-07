@@ -14,6 +14,6 @@ class KinogerPlugin: Plugin() {
         registerExtractorAPI(KinogerRu())
         registerExtractorAPI(KinogerBe())
         registerExtractorAPI(KinogerPw())
-        registerExtractorAPI(Voe1())
+        registerExtractorAPI(KinogerRe())
     }
 }
