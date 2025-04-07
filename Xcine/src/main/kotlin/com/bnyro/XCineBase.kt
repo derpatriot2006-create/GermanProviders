@@ -153,8 +153,13 @@ abstract class XCineBase : MainAPI() {
     ): Boolean {
         val loadData = parseJson<LoadData>(data)
 
-        loadData.links.amap {
-            val link = fixUrlNull(it) ?: return@amap null
+        // only take few vinovo links due to ratelimiting
+        val (vinovoLinks, normalLinks) = loadData.links.partition { it.startsWith("https://vinovo.") }
+        val links = normalLinks + vinovoLinks.shuffled().take(3)
+
+        links.amap { link ->
+            if (!link.startsWith("http")) return@amap null
+
             if (link.startsWith("https://dl.streamcloud")) {
                 callback.invoke(
                     newExtractorLink(
