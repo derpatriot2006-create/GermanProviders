@@ -21,6 +21,8 @@ import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
+import com.lagradost.cloudstream3.utils.newExtractorLink
+import kotlinx.coroutines.runBlocking
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
@@ -130,16 +132,19 @@ open class Serienstream : MainAPI() {
             val name = "${it.third} [${lang}]"
 
             loadExtractor(redirectUrl, data, subtitleCallback) { link ->
-                val linkWithFixedName = ExtractorLink(
-                    name,
-                    name,
-                    link.url,
-                    link.referer,
-                    link.quality,
-                    link.type,
-                    link.headers,
-                    link.extractorData
-                )
+                val linkWithFixedName = runBlocking {
+                    newExtractorLink(
+                        source = it.third,
+                        name = name,
+                        url = link.url
+                    ) {
+                        referer = link.referer
+                        quality = link.quality
+                        type = link.type
+                        headers = link.headers
+                        extractorData = link.extractorData
+                    }
+                }
                 callback.invoke(linkWithFixedName)
             }
         }

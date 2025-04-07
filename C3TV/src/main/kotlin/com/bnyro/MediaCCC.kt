@@ -8,6 +8,7 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.newExtractorLink
 
 
 open class MediaCCC : MainAPI() {
@@ -91,14 +92,15 @@ open class MediaCCC : MainAPI() {
             if (recording.mimeType.startsWith("video")) {
                 val streamInfo = "MediaCCC (${recording.language})"
                 callback.invoke(
-                    ExtractorLink(
+                    newExtractorLink(
                         source = streamInfo,
                         name = streamInfo,
                         url = recording.recordingUrl,
-                        referer = "",
-                        quality = recording.height?.toInt() ?: Qualities.Unknown.value,
                         type = ExtractorLinkType.VIDEO
-                    )
+                    ) {
+                        referer = ""
+                        quality = recording.height?.toInt() ?: Qualities.Unknown.value
+                    }
                 )
             } else if (recording.mimeType.startsWith("text")) {
                 subtitleCallback.invoke(

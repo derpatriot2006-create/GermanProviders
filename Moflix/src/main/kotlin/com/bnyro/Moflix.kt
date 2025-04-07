@@ -189,13 +189,12 @@ open class Moflix : MainAPI() {
             json.urls
         }
 
-        iframes?.amap { iframe ->
-            loadCustomExtractor(
-                iframe.src ?: return@amap,
+        iframes?.filter { it.src != null }?.amap { iframe ->
+            loadExtractor(
+                iframe.src!!,
                 "$mainUrl/",
                 subtitleCallback,
-                callback,
-                iframe.quality?.substringBefore("/")?.filter { it.isDigit() }?.toIntOrNull()
+                callback
             )
         }
 
@@ -206,31 +205,6 @@ open class Moflix : MainAPI() {
         val chunk = "/titles/"
         return if (this.contains(chunk)) this.substringAfter(chunk)
             .substringBefore("/") else this.substringAfterLast("/")
-    }
-
-    private suspend fun loadCustomExtractor(
-        url: String,
-        referer: String? = null,
-        subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit,
-        quality: Int? = null,
-    ) {
-        loadExtractor(url, referer, subtitleCallback) { link ->
-            if (link.quality == Qualities.Unknown.value || !link.isM3u8) {
-                callback.invoke(
-                    ExtractorLink(
-                        link.source,
-                        link.name,
-                        link.url,
-                        link.referer,
-                        quality ?: link.quality,
-                        link.type,
-                        link.headers,
-                        link.extractorData
-                    )
-                )
-            }
-        }
     }
 
     private fun String.compress(): String {

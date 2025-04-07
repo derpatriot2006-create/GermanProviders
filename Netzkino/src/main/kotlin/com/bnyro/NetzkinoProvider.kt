@@ -18,6 +18,7 @@ import com.lagradost.cloudstream3.utils.AppUtils
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.newExtractorLink
 import kotlin.math.roundToInt
 
 
@@ -87,13 +88,13 @@ open class NetzkinoProvider : MainAPI() {
 
         customFields.streaming.forEach { streamSlug ->
             callback(
-                ExtractorLink(
+                newExtractorLink(
                     source = "Netzkino",
                     name = "Netzkino MP4",
-                    url = "https://pmd.netzkino-seite.netzkino.de/${streamSlug}.mp4",
-                    referer = "https://www.netzkino.de/",
-                    quality = Qualities.Unknown.value,
-                )
+                    url = "https://pmd.netzkino-seite.netzkino.de/${streamSlug}.mp4"
+                ) {
+                    referer = "https://www.netzkino.de/"
+                }
             )
         }
 

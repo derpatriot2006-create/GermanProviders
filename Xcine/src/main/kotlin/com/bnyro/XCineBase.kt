@@ -24,6 +24,7 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
+import com.lagradost.cloudstream3.utils.newExtractorLink
 
 abstract class XCineBase : MainAPI() {
     override var name = "XCine"
@@ -156,12 +157,10 @@ abstract class XCineBase : MainAPI() {
             val link = fixUrlNull(it) ?: return@amap null
             if (link.startsWith("https://dl.streamcloud")) {
                 callback.invoke(
-                    ExtractorLink(
-                        this.name,
-                        this.name,
-                        link,
-                        "",
-                        Qualities.Unknown.value
+                    newExtractorLink(
+                        source = this.name,
+                        name = this.name,
+                        url = link
                     )
                 )
             } else {
