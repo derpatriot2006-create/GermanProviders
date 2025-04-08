@@ -11,12 +11,10 @@ class FilmpalastPlugin: Plugin() {
     override fun load(context: Context) {
         // All providers should be added in this manner. Please don't edit the providers list directly.
         registerMainAPI(FilmpalastProvider())
+
         registerExtractorAPI(Voe1())
-        registerExtractorAPI(BigwarpIO())
         registerExtractorAPI(Ryderjet())
         registerExtractorAPI(FileMoonSx())
-        registerExtractorAPI(Dhtpre())
-        registerExtractorAPI(Peytonepre())
         registerExtractorAPI(AbstreamTo())
     }
 }

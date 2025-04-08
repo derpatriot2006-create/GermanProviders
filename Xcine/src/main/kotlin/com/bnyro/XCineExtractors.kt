@@ -4,6 +4,7 @@ import com.lagradost.cloudstream3.extractors.DoodLaExtractor
 import com.lagradost.cloudstream3.extractors.MixDrop
 import com.lagradost.cloudstream3.extractors.StreamWishExtractor
 import com.lagradost.cloudstream3.extractors.Supervideo
+import com.lagradost.cloudstream3.extractors.VidHidePro
 import com.lagradost.cloudstream3.extractors.Voe
 
 class MixDropPs: MixDrop() {
@@ -36,19 +37,6 @@ class DroploadIo: Supervideo() {
     override var mainUrl = "https://dropload.io"
 }
 
-open class BigwarpIO: StreamWishExtractor() {
-    override var name = "Bigwarp"
-    override var mainUrl = "https://bigwarp.io"
-}
-
-class BgwpCC: BigwarpIO() {
-    override var mainUrl = "https://bgwp.cc"
-}
-
-class BigwarpArt: BigwarpIO() {
-    override var mainUrl = "https://bigwarp.art"
-}
-
 class GoofyBanana: Voe() {
     override var name = "Goofy Banana"
     override var mainUrl = "https://goofy-banana.com"
@@ -63,7 +51,7 @@ class Luluvdo: StreamWishExtractor() {
     override val mainUrl = "https://luluvdo.com"
 }
 
-class Ryderjet: Supervideo() {
+class Ryderjet: VidHidePro() {
     override var name = "Ryderjet"
     override var mainUrl = "https://ryderjet.com"
 }

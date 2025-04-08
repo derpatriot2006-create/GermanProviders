@@ -1,7 +1,8 @@
 package com.bnyro
 
 import com.lagradost.cloudstream3.extractors.Chillx
-import com.lagradost.cloudstream3.extractors.Supervideo
+import com.lagradost.cloudstream3.extractors.VidHidePro
+import com.lagradost.cloudstream3.extractors.VidStack
 import com.lagradost.cloudstream3.extractors.Vidguardto
 
 class KinogerRu : Chillx() {
@@ -9,7 +10,7 @@ class KinogerRu : Chillx() {
     override val mainUrl = "https://kinoger.ru"
 }
 
-class KinogerBe : Supervideo() {
+class KinogerBe : VidHidePro() {
     override var name = "KinogerBe"
     override var mainUrl = "https://kinoger.be"
 }
@@ -19,7 +20,7 @@ class KinogerPw : Vidguardto() {
     override var mainUrl = "https://kinoger.pw"
 }
 
-class KinogerRe : Vidguardto() {
-    override val name = "KinogerRe"
-    override val mainUrl = "https://kinoger.re"
+class KinogerRe : VidStack() {
+    override var name = "KinogerRe"
+    override var mainUrl = "https://kinoger.re"
 }
