@@ -5,6 +5,7 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.extractors.Chillx
 import com.lagradost.cloudstream3.extractors.StreamWishExtractor
 import com.lagradost.cloudstream3.extractors.VidStack
+import com.lagradost.cloudstream3.extractors.Vidguardto
 import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.M3u8Helper
@@ -13,6 +14,11 @@ import com.lagradost.cloudstream3.utils.getAndUnpack
 class MoflixFans : Chillx() {
     override val name = "MoflixFans"
     override val mainUrl = "https://moflix-stream.fans"
+}
+
+class MoflixDay : Vidguardto() {
+    override val name = "MoflixDay"
+    override val mainUrl = "https://moflix-stream.day"
 }
 
 class MoflixUpns : VidStack() {

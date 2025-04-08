@@ -15,6 +15,7 @@ class MoflixPlugin: Plugin() {
         registerExtractorAPI(MoflixFans())
         registerExtractorAPI(MoflixUpns())
         registerExtractorAPI(MoflixRpmplay())
+        registerExtractorAPI(MoflixDay())
         registerExtractorAPI(DoodstreamCom())
     }
 }
