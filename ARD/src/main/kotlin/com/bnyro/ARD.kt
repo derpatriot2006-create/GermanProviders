@@ -15,6 +15,7 @@ import com.lagradost.cloudstream3.addDate
 import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
+import com.lagradost.cloudstream3.mvvm.debugException
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newLiveSearchResponse
@@ -46,16 +47,17 @@ open class ARD : MainAPI() {
         "1FdQ5oz2JK6o2qmyqMsqiI:-4573418300315789064" to "Jetzt Live",
         "1FdQ5oz2JK6o2qmyqMsqiI:7024894723483797725" to "Film-Empfehlungen",
         "1f65j6Y49hbQUyQbg3sWRP:-6881003991164746949" to "Unsere Top-Serien",
-        "1f65j6Y49hbQUyQbg3sWRP:-1242529055250270726" to "Dramaserien",
-        "1f65j6Y49hbQUyQbg3sWRP:-1698940734772669089" to "Crime und spannende Serien",
-        "3JvraZLz6r8E9VJOSjxe0m:5345608557251872358" to "Derzeit beliebte Dokus",
         "3JvraZLz6r8E9VJOSjxe0m:3945748791191973508" to "Spannende Dokus und Reportagen",
+        "1f65j6Y49hbQUyQbg3sWRP:-1242529055250270726" to "Drama-Serien",
+        "1f65j6Y49hbQUyQbg3sWRP:8954650660112843577" to "Dramedy-Serien",
+        "1f65j6Y49hbQUyQbg3sWRP:-1698940734772669089" to "Crime und spannende Serien",
         "3JvraZLz6r8E9VJOSjxe0m:-4951729414550313310" to "Dokumentarfilme",
-        "1FdQ5oz2JK6o2qmyqMsqiI:-4156144666028728696" to "Beste Doku-Serien",
+        "1FdQ5oz2JK6o2qmyqMsqiI:-4156144666028728696" to "Unsere besten Dokuserien",
         "d08a2b5f-8133-4bdd-8ea9-64b6172ce5ee:5379188208992982100" to "Aktuelle Debatten",
         "d08a2b5f-8133-4bdd-8ea9-64b6172ce5ee:-1083078599273736954" to "Exklusive Recherchen",
+        "3JvraZLz6r8E9VJOSjxe0m%3A-7375671202743065214" to "Wissens-Dokus",
         "1FdQ5oz2JK6o2qmyqMsqiI:-6311741896596619341" to "Doku-Soaps",
-        "1FdQ5oz2JK6o2qmyqMsqiI:8803268113750988523" to "Reality-Shows",
+        "1FdQ5oz2JK6o2qmyqMsqiI%3A-3221987816760504385" to "Soaps und Kultserien",
         "1FdQ5oz2JK6o2qmyqMsqiI:-8035917636575745435" to "Politik-Talks und Politik-Magazine"
     )
 
@@ -97,33 +99,41 @@ open class ARD : MainAPI() {
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        val response =
-            app.get("${mainUrl}/page-gateway/widgets/ard/editorials/${request.data}?pageSize=${PAGE_SIZE}&pageNumber=${page - 1}")
-                .parsed<Editorial>()
+        try {
+            val response =
+                app.get("${mainUrl}/page-gateway/widgets/ard/editorials/${request.data}?pageSize=${PAGE_SIZE}&pageNumber=${page - 1}")
+                    .parsed<Editorial>()
 
-        val searchResults = if (request.name == "Jetzt Live") {
-            val programInfoMap = fetchProgramInformation()
+            val searchResults = if (request.name == "Jetzt Live") {
+                val programInfoMap = fetchProgramInformation()
 
-            val results = response.teasers.map { channel ->
-                // append program information (if available)
-                val programInfo = programInfoMap[channel.getID()]
+                val results = response.teasers.map { channel ->
+                    // append program information (if available)
+                    val programInfo = programInfoMap[channel.getID()]
 
-                if (programInfo != null) {
-                    channel.copy(
-                        title = "${programInfo.title} (${channel.title})",
-                        images = programInfo.images,
-                        broadcastedOn = programInfo.broadcastedOn,
-                    )
-                } else channel
-            }.mapNotNull { it.toSearchResponse() }
+                    if (programInfo != null) {
+                        channel.copy(
+                            title = "${programInfo.title} (${channel.title})",
+                            images = programInfo.images,
+                            broadcastedOn = programInfo.broadcastedOn,
+                        )
+                    } else channel
+                }.mapNotNull { it.toSearchResponse() }
 
-            // append external live streams
-            results + extraLiveLinks.map { it.toSearchResponse() }
-        } else {
-            response.teasers.mapNotNull { it.toSearchResponse() }
+                // append external live streams
+                results + extraLiveLinks.map { it.toSearchResponse() }
+            } else {
+                response.teasers.mapNotNull { it.toSearchResponse() }
+            }
+
+            return newHomePageResponse(request.name, searchResults, hasNext = false)
+        } catch (e: Exception) {
+            // catch exceptions if a single home page category fails
+            // because that would otherwise cancel all others as well
+            debugException { e.toString() }
+
+            return newHomePageResponse(request.name, emptyList())
         }
-
-        return newHomePageResponse(request.name, searchResults, hasNext = false)
     }
 
     private suspend fun fetchProgramInformation(): Map<String, Teaser> {
