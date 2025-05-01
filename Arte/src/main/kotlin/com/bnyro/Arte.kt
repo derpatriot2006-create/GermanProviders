@@ -96,13 +96,16 @@ open class Arte : MainAPI() {
 
         if (isSeries(programId)) {
             val firstProgramId = app.get("$apiUrl/api/player/v2/config/$lang/$programId")
-                .parsed<PlayerConfigResponse>().data.attributes.metadata.config.replay!!.substringAfterLast("/")
+                .parsed<PlayerConfigResponse>().data.attributes.metadata.config.replay!!.substringAfterLast(
+                    "/"
+                )
 
             val programInfo = app.get("$apiUrl/api/player/v2/playlist/de/$programId")
                 .parsed<PlayerConfigResponse>().data.attributes
 
-            val seriesInfo = app.get("$mainUrl/api/rproxy/emac/v4/$lang/$client/programs/$firstProgramId")
-                .parsed<ProgramInfo>()
+            val seriesInfo =
+                app.get("$mainUrl/api/rproxy/emac/v4/$lang/$client/programs/$firstProgramId")
+                    .parsed<ProgramInfo>()
 
             val episodes = seriesInfo.value.zones.filter {
                 it.code.startsWith("program_playNext")
@@ -118,7 +121,12 @@ open class Arte : MainAPI() {
                 }
             }
 
-            return newTvSeriesLoadResponse(episodes = episodes, type = TvType.TvSeries, url = url, name = programInfo.metadata.title) {
+            return newTvSeriesLoadResponse(
+                episodes = episodes,
+                type = TvType.TvSeries,
+                url = url,
+                name = programInfo.metadata.title
+            ) {
                 posterUrl = programInfo.metadata.images.firstOrNull()?.url
                 plot = programInfo.metadata.description
                 duration = programInfo.metadata.duration.seconds.div(60).toInt()
@@ -131,7 +139,7 @@ open class Arte : MainAPI() {
                 name = response.metadata.title,
                 url = url,
                 type = TvType.Movie,
-                dataUrl = response.streams.toJson()
+                dataUrl = url
             ) {
                 plot = response.metadata.description
                 posterUrl = response.metadata.images.firstOrNull()?.url
@@ -166,7 +174,8 @@ open class Arte : MainAPI() {
                     name = "Arte",
                     url = stream.url,
                 ) {
-                    quality = stream.mainQuality.label.takeWhile { it.isDigit() }.toIntOrNull() ?: Qualities.Unknown.value
+                    quality = stream.mainQuality.label.takeWhile { it.isDigit() }.toIntOrNull()
+                        ?: Qualities.Unknown.value
                 }
             )
         }
