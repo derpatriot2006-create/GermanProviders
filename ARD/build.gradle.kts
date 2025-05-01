@@ -6,7 +6,7 @@ cloudstream {
     language = "de"
     // All of these properties are optional, you can safely remove them
 
-    description = "German public media"
+    description = "Öffentlich-rechtliche Rundfunkanstalten"
     authors = listOf("Bnyro")
 
     /**

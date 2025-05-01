@@ -6,7 +6,7 @@ cloudstream {
     language = "de"
     // All of these properties are optional, you can safely remove them
 
-    description = "Talks from media.ccc.de"
+    description = "Vorträge von media.ccc.de"
     authors = listOf("Bnyro")
 
     /**
