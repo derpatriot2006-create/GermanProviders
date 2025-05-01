@@ -17,7 +17,6 @@ import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
-import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.M3u8Helper
 import com.lagradost.cloudstream3.utils.Qualities
@@ -49,10 +48,10 @@ open class Arte : MainAPI() {
             .parsed<ZoneInfoResponse>()
             .value
             .zones
-            .filter { it.content?.data.orEmpty().size >= 5 }
+            .filter { it.content != null && it.content.data.filterNotTopic().size >= 5 }
 
         val pages = zones.map { zone ->
-            val items = zone.content!!.data.filter { it.kind.code != "TOPIC" }
+            val items = zone.content!!.data.filterNotTopic()
             HomePageList(name = zone.title, list = items.map { it.toSearchResponse() })
         }
 
@@ -69,7 +68,11 @@ open class Arte : MainAPI() {
         )
             .parsed<MediaListResponse>()
 
-        return resp.value.data.filter { it.kind.code != "TOPIC" }.map { it.toSearchResponse() }
+        return resp.value.data.filterNotTopic().map { it.toSearchResponse() }
+    }
+
+    private fun List<ResultItem>.filterNotTopic(): List<ResultItem> {
+        return filter { it.kind.code != "TOPIC" }
     }
 
     private fun ResultItem.toSearchResponse(): SearchResponse {
