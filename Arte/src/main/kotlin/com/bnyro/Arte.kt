@@ -18,7 +18,6 @@ import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.M3u8Helper
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.newExtractorLink
 
@@ -163,14 +162,6 @@ open class Arte : MainAPI() {
             .parsed<PlayerConfigResponse>()
 
         for (stream in response.data.attributes.streams) {
-            if (stream.protocol.contains("HLS")) {
-                M3u8Helper.generateM3u8(
-                    source = "Arte",
-                    streamUrl = stream.url,
-                    referer = mainUrl
-                ).forEach(callback)
-            }
-
             callback.invoke(
                 newExtractorLink(
                     source = "Arte",
