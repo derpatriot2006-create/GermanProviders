@@ -119,6 +119,7 @@ open class Arte : MainAPI() {
                         this.posterUrl = episode.mainImage?.url?.replace("__SIZE__", "380x214")
                         this.season = seasonIndex + 1
                         this.episode = index + 1
+                        this.runTime = episode.duration.div(60).toInt()
                     })
                 }
             }
