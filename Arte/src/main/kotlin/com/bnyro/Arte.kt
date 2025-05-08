@@ -1,6 +1,7 @@
 package com.bnyro
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.lagradost.cloudstream3.Episode
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -9,6 +10,7 @@ import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.mainPageOf
@@ -21,6 +23,15 @@ import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.newExtractorLink
 
+// Discovered Routes
+// https://www.arte.tv/api/rproxy/emac/v4/de/web/collections/{collectionId} for series
+// https://www.arte.tv/api/rproxy/emac/v4/de/web/programs/{episodeId} for continuation of episodes
+// https://www.arte.tv/api/rproxy/emac/v4/de/web/pages/ for a list of collections (e.g. CIN, SER)
+// https://www.arte.tv/api/rproxy/emac/v4/de/web/pages/{page} for viewing a specific page (e.g. CIN)
+// https://www.arte.tv/api/rproxy/emac/v4/de/web/zones/{zoneId}/content?authorizedCountry=DE&collectionId={collectionId}&page={pageNo}&subCollectionId={collectionId} for collection pagination
+// https://api.arte.tv/api/player/v2/config/de/{programId} for stream sources
+// https://api.arte.tv/api/player/v2/playlist/de/{collectionId} for playlist info
+
 open class Arte : MainAPI() {
     override var name = "Arte"
     override var lang = "de"
@@ -28,8 +39,10 @@ open class Arte : MainAPI() {
     override val hasMainPage = true
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
     override var mainUrl = "https://www.arte.tv"
-    open var apiUrl = "https://api.arte.tv"
+    open var apiBaseUrl = "https://api.arte.tv"
+
     open var client = "web"
+    open val proxyApiUrl: String get() = "$mainUrl/api/rproxy/emac/v4/$lang/$client"
 
     override val mainPage = mainPageOf(
         "AVN" to "Demnächst",
@@ -42,8 +55,14 @@ open class Arte : MainAPI() {
         "ACT" to "Aktuelles und Gesellschaft"
     )
 
+    private suspend fun getPageToken(category: String): String? {
+        return app.get("$proxyApiUrl/pages/$category")
+            .parsed<ZoneInfoResponse>()
+            .value.zones.firstOrNull()?.id
+    }
+
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
-        val zones = app.get("$mainUrl/api/rproxy/emac/v4/de/$client/pages/${request.data}")
+        val zones = app.get("$proxyApiUrl/pages/${request.data}")
             .parsed<ZoneInfoResponse>()
             .value
             .zones
@@ -58,12 +77,10 @@ open class Arte : MainAPI() {
     }
 
     override suspend fun search(query: String): List<SearchResponse>? {
-        val zoneId = app.get("$mainUrl/api/rproxy/emac/v4/de/$client/pages/SEARCH")
-            .parsed<ZoneInfoResponse>()
-            .value.zones.firstOrNull()?.id ?: return null
+        val zoneId = getPageToken("SEARCH") ?: return null
 
         val resp = app.get(
-            "$mainUrl/api/rproxy/emac/v4/de/$client/zones/$zoneId/content?authorizedCountry=${lang.uppercase()}&page=1&query=$query"
+            "$proxyApiUrl/zones/$zoneId/content?authorizedCountry=${lang.uppercase()}&page=1&query=$query"
         )
             .parsed<MediaListResponse>()
 
@@ -93,49 +110,70 @@ open class Arte : MainAPI() {
         return programId.startsWith("RC")
     }
 
+    private fun ResultItem.toEpisodeItem(season: Int?): Episode {
+        return newEpisode(url = fixUrl(url), initializer = {
+            this.name = listOfNotNull(title, subtitle).joinToString(" - ")
+            this.description = shortDescription
+            this.posterUrl = mainImage?.url?.replace("__SIZE__", "380x214")
+
+            val numberMatch = Regex(""""\((\d+)/\d+\)$""").find(title)
+                ?.groupValues?.getOrNull(1)?.toIntOrNull()
+            this.season = season
+            this.episode = numberMatch
+
+            this.runTime = duration.div(60).toInt()
+        })
+    }
+
     override suspend fun load(url: String): LoadResponse? {
         val programId = extractProgramId(url) ?: return null
 
         if (isSeries(programId)) {
-            val firstProgramId = app.get("$apiUrl/api/player/v2/config/$lang/$programId")
-                .parsed<PlayerConfigResponse>().data.attributes.metadata.config.replay!!.substringAfterLast(
-                    "/"
-                )
-
-            val programInfo = app.get("$apiUrl/api/player/v2/playlist/de/$programId")
-                .parsed<PlayerConfigResponse>().data.attributes
-
-            val seriesInfo =
-                app.get("$mainUrl/api/rproxy/emac/v4/$lang/$client/programs/$firstProgramId")
-                    .parsed<ProgramInfo>()
+            val seriesInfo = app.get("$proxyApiUrl/collections/$programId")
+                .parsed<ProgramInfo>()
 
             val episodes = seriesInfo.value.zones.filter {
-                it.code.startsWith("program_playNext")
-            }.flatMapIndexed { seasonIndex, zone ->
-                zone.content.data.mapIndexed { index, episode ->
-                    newEpisode(url = fixUrl(episode.url), initializer = {
-                        this.name = episode.title
-                        this.description = episode.shortDescription
-                        this.posterUrl = episode.mainImage?.url?.replace("__SIZE__", "380x214")
-                        this.season = seasonIndex + 1
-                        this.episode = index + 1
-                        this.runTime = episode.duration.div(60).toInt()
-                    })
+                it.displayOptions.template != "single-collectionContent"
+            }.amap { zone ->
+                val seasonNumber = zone.slug?.substringAfterLast("-")?.toIntOrNull()
+                val episodes = zone.content.data.map { it.toEpisodeItem(seasonNumber) }
+                    .toMutableList()
+
+                // format: {zoneId}_{collectionId}_{subCollectionId}
+                val zoneIdParts = zone.id.split("_")
+                val paginationZoneId = zoneIdParts.first()
+
+                val maxPage = zone.content.pagination?.pages ?: 1
+                var currentPage = zone.content.pagination?.currentPage ?: 1
+                while (currentPage != maxPage) {
+                    currentPage++
+
+                    var paginationUrl =
+                        "$proxyApiUrl/zones/$paginationZoneId/content?authorizedCountry=${lang.uppercase()}&page=${currentPage}&collectionId=$programId"
+                    if (zoneIdParts.size == 3) paginationUrl += "&subCollectionId=${zoneIdParts.last()}"
+                    val episodesInfo = app.get(paginationUrl)
+                        .parsed<MediaListResponse>()
+
+                    val episodesPage = episodesInfo.value.data.map { episode ->
+                        episode.toEpisodeItem(seasonNumber)
+                    }
+                    episodes.addAll(episodesPage)
                 }
-            }
+
+                episodes
+            }.flatten()
 
             return newTvSeriesLoadResponse(
                 episodes = episodes,
                 type = TvType.TvSeries,
                 url = url,
-                name = programInfo.metadata.title
+                name = seriesInfo.value.metadata.title
             ) {
-                posterUrl = programInfo.metadata.images.firstOrNull()?.url
-                plot = programInfo.metadata.description
-                duration = programInfo.metadata.duration.seconds.div(60).toInt()
+                plot = seriesInfo.value.metadata.description
+                posterUrl = seriesInfo.value.metadata.og.image.url
             }
         } else {
-            val response = app.get("$apiUrl/api/player/v2/config/$lang/$programId")
+            val response = app.get("$apiBaseUrl/api/player/v2/config/$lang/$programId")
                 .parsed<PlayerConfigResponse>().data.attributes
 
             return newMovieLoadResponse(
@@ -159,7 +197,7 @@ open class Arte : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val programId = extractProgramId(data)
-        val response = app.get("$apiUrl/api/player/v2/config/$lang/$programId")
+        val response = app.get("$apiBaseUrl/api/player/v2/config/$lang/$programId")
             .parsed<PlayerConfigResponse>()
 
         for (stream in response.data.attributes.streams) {
@@ -274,20 +312,22 @@ open class Arte : MainAPI() {
     data class Zone(
         val id: String,
         val title: String,
-        val content: ZoneData?
+        val content: ZoneContent?
     )
 
-    data class ZoneData(
-        val data: List<ResultItem>
+    data class ZoneContent(
+        val data: List<ResultItem>,
+        val pagination: Pagination?
+    )
+
+    data class Pagination(
+        @JsonProperty("page") val currentPage: Int,
+        val pages: Int
     )
 
     data class MediaListResponse(
         val tag: String,
-        val value: SearchValue,
-    )
-
-    data class SearchValue(
-        val data: List<ResultItem> = emptyList(),
+        val value: ZoneContent,
     )
 
     data class ResultItem(
@@ -348,7 +388,6 @@ open class Arte : MainAPI() {
         val url: String,
         val deeplink: String,
         val slug: String,
-        val stats: Stats,
         val metadata: ProgramMetadata,
         val zones: List<ProgramInfoZone>,
         val parent: Parent,
@@ -360,48 +399,6 @@ open class Arte : MainAPI() {
         val page: String,
         val url: String,
         val title: String,
-    )
-
-    data class Stats(
-        val xiti: Xiti,
-        val serverSideTracking: ServerSideTracking,
-    )
-
-    data class Xiti(
-        @JsonProperty("page_name")
-        val pageName: String,
-        val chapter1: String,
-        val chapter2: String,
-        val chapter3: Any?,
-        val x1: String,
-        val x2: String,
-        val x4: String,
-        val s2: Long,
-        val siteId: String,
-        @JsonProperty("env_work")
-        val envWork: String,
-        @JsonProperty("search_keywords")
-        val searchKeywords: Any?,
-    )
-
-    data class ServerSideTracking(
-        val page: Page,
-        val content: Content,
-    )
-
-    data class Page(
-        val id: String,
-        val language: String,
-        val url: String,
-        val abv: String,
-    )
-
-    data class Content(
-        val id: String,
-        val slug: String,
-        val category: String,
-        val subcategory: String,
-        val kind: String,
     )
 
     data class ProgramMetadata(
@@ -420,6 +417,7 @@ open class Arte : MainAPI() {
         val title: String,
         val displayOptions: DisplayOptions,
         val link: Link?,
+        val slug: String?,
         val displayTeaserGenre: Boolean,
         val content: ZoneContent,
     )
@@ -428,10 +426,6 @@ open class Arte : MainAPI() {
         val template: String,
         val showZoneTitle: Boolean,
         val showItemTitle: Boolean,
-    )
-
-    data class ZoneContent(
-        val data: List<ResultItem>,
     )
 
     data class Parent(
