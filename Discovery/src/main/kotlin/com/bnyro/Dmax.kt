@@ -26,17 +26,20 @@ open class Dmax : MainAPI() {
 
     override var name: String = "Dmax"
     override var mainUrl: String = "https://dmax.de"
-    open var serviceIdentifier: String = "dmax"
     open var apiUrl: String = "https://eu1-prod.disco-api.com"
     open var metadataApiUrl: String = "https://de-api.loma-cms.com"
-    open var mediathekSlug: String = "sendungen"
 
-    private suspend fun obtainToken(realm: String): String {
+    // service specific configuration
+    open var serviceIdentifier: String = "dmax" // used for metadataApiUrl
+    open var mediathekSlug: String = "sendungen" // used for metadataApiUrl
+    open var apiTokenRealm = "dmaxde" // used for obtaining tokens from apiUrl
+
+    private suspend fun obtainApiToken(): String {
         return app.get(
-            "$apiUrl/token?realm=$realm", headers = mapOf(
+            "$apiUrl/token?realm=$apiTokenRealm", headers = mapOf(
                 "X-Device-Info" to "STONEJS/1 (Unknown/Unknown; Linux/undefined; Unknown)",
                 "X-disco-client" to "WEB:UNKNOWN:wbdatv:2.1.9",
-                "X-disco-params" to "realm=$realm",
+                "X-disco-params" to "realm=$apiTokenRealm",
             )
         ).parsed<TokenResponse>().data.attributes.token
     }
@@ -46,12 +49,15 @@ open class Dmax : MainAPI() {
             app.get("$metadataApiUrl/feloma/page/homepage/?environment=$serviceIdentifier&v=2")
                 .parsed<MediaResult>()
 
-        val pages = response.blocks.filter { it.items.isNotEmpty() }.map { block ->
-            HomePageList(
-                name = block.title.orEmpty(),
-                list = block.items.filter { it.videoType != "CLIP" }.map { it.toSearchResponse() }
-            )
-        }.filter { it.list.isNotEmpty() }
+        val pages =
+            response.blocks.filter { it.items.isNotEmpty() }
+                .map { block ->
+                    HomePageList(
+                        name = block.title.orEmpty(),
+                        list = block.items.filter { it.pageType == "showpage" }
+                            .map { it.toSearchResponse() }
+                    )
+                }.filter { it.list.isNotEmpty() }
 
         return newHomePageResponse(pages, hasNext = false)
     }
@@ -67,7 +73,7 @@ open class Dmax : MainAPI() {
     private fun MediaResult.toSearchResponse(): SearchResponse {
         return newMovieSearchResponse(
             name = title,
-            url = "$mainUrl/mediathek/$slug",
+            url = "$mainUrl/$mediathekSlug/$slug",
             type = TvType.Movie
         ) {
             this.posterUrl = image?.url
@@ -78,7 +84,7 @@ open class Dmax : MainAPI() {
     private fun EpisodeInfo.toSearchResponse(): SearchResponse {
         return newMovieSearchResponse(
             name = title.orEmpty(),
-            url = fixUrl(link?.url ?: "/mediathek/${alternateId ?: url}"),
+            url = fixUrl(link?.url ?: "/$mediathekSlug/${alternateId ?: url}"),
             type = TvType.Movie
         ) {
             this.posterUrl = poster?.src ?: image?.url
@@ -87,7 +93,7 @@ open class Dmax : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        val slug = url.substringAfterLast("/")
+        val slug = url.removeSuffix("/").substringAfterLast("/")
         val response =
             app.get("$metadataApiUrl/feloma/page/$slug/?environment=$serviceIdentifier&parent_slug=$mediathekSlug&v=2")
                 .parsed<MediaResult>()
@@ -145,7 +151,7 @@ open class Dmax : MainAPI() {
     ): Boolean {
         val videoId = AppUtils.parseJson<StreamInfo>(data).id
 
-        val authToken = obtainToken("dmaxde")
+        val authToken = obtainApiToken()
 
         val response = app.post(
             "$apiUrl/playback/v3/videoPlaybackInfo",
@@ -227,6 +233,7 @@ open class Dmax : MainAPI() {
 
     private data class Block(
         val title: String?,
+        val type: String?,
         val videoId: String?,
         val showId: String?,
         val items: List<EpisodeInfo> = emptyList()
@@ -252,6 +259,7 @@ open class Dmax : MainAPI() {
         val image: Image?,
         val link: Link?,
         val url: String?,
+        val pageType: String?
     )
 
     private data class Link(
@@ -340,9 +348,7 @@ open class Dmax : MainAPI() {
     )
 
     private data class VendorAttributes(
-        val breaks: List<Any?>,
         val interstitialUrl: String,
-        val nonLinearAds: List<Any?>,
         val pingUrl: String,
         val sessionId: String,
     )
@@ -361,7 +367,6 @@ open class Dmax : MainAPI() {
     private data class Protection(
         val clearkeyEnabled: Boolean,
         val drmEnabled: Boolean,
-        val schemes: Any?,
     )
 
     private data class UserInfo(
@@ -376,6 +381,3 @@ open class Dmax : MainAPI() {
         val id: String
     )
 }
-
-
-
