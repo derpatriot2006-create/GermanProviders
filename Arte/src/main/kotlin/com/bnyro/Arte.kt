@@ -336,7 +336,6 @@ open class Arte : MainAPI() {
         val kind: Kind,
         val mainImage: Image?,
         val shortDescription: String?,
-        val stickers: List<Quality> = emptyList(),
         val subtitle: String?,
         val title: String,
         val trackingPixel: String,
