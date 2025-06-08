@@ -12,7 +12,6 @@ import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
-import com.lagradost.cloudstream3.fixUrlNull
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
@@ -22,7 +21,6 @@ import com.lagradost.cloudstream3.newTvSeriesSearchResponse
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
-import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
 
@@ -33,7 +31,6 @@ abstract class XCineBase : MainAPI() {
     override val usesWebView = false
     override val hasMainPage = true
     override val supportedTypes = setOf(TvType.TvSeries, TvType.Movie)
-    abstract val mainAPI: String
 
     override val mainPage = mainPageOf(
         "data/browse/?lang=2&keyword=&year=&rating=&votes=&genre=&country=&cast=&directors=&type=movies&order_by=trending" to "Trends",
@@ -54,7 +51,7 @@ abstract class XCineBase : MainAPI() {
         request: MainPageRequest
     ): HomePageResponse {
         val home =
-            app.get("$mainAPI/${request.data}&page=$page", referer = "$mainUrl/")
+            app.get("$mainUrl/${request.data}&page=$page", referer = "$mainUrl/")
                 .parsed<MediaResponse>().movies?.mapNotNull { res ->
                     res.toSearchResponse()
                 } ?: throw ErrorLoadingException("No movies in response.")
@@ -75,7 +72,7 @@ abstract class XCineBase : MainAPI() {
     override suspend fun quickSearch(query: String): List<SearchResponse> = search(query)
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val res = app.get("$mainAPI/data/browse/?lang=2&keyword=$query", referer = "$mainUrl/")
+        val res = app.get("$mainUrl/data/browse/?lang=2&keyword=$query", referer = "$mainUrl/")
             .parsed<MediaResponse>()
 
         return res.movies?.mapNotNull {
@@ -86,13 +83,13 @@ abstract class XCineBase : MainAPI() {
     override suspend fun load(url: String): LoadResponse? {
         val id = parseJson<ItemData>(url).id
 
-        val requestUrl = "$mainAPI/data/watch/?_id=$id"
+        val requestUrl = "$mainUrl/data/watch/?_id=$id"
         val res = app.get(requestUrl, referer = "$mainUrl/")
             .parsed<MediaDetail>()
         val type = if (res.tv == 1) TvType.TvSeries else TvType.Movie
 
         val recommendations =
-            app.get("$mainAPI/data/related_movies/?lang=2&cat=$type&_id=$id")
+            app.get("$mainUrl/data/related_movies/?lang=2&cat=$type&_id=$id")
                 .parsed<RecommendationsResponse>()
                 .mapNotNull { it.toSearchResponse() }
 

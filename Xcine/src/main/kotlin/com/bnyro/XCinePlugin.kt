@@ -22,7 +22,7 @@ class XCinePlugin: Plugin() {
         registerMainAPI(XcineIO())
         registerMainAPI(Movie4k())
         registerMainAPI(Streamcloud())
-        registerMainAPI(KinoKisteEU())
+        registerMainAPI(KinoKisteClub())
 
         registerExtractorAPI(Voe())
         registerExtractorAPI(FileMoonSx())
