@@ -18,7 +18,7 @@ open class HDFilme : MainAPI() {
     override val hasQuickSearch = true
     override val supportedTypes = setOf(TvType.Movie)
     override var mainUrl = "https://hdfilme.my"
-    open val streamsSourceUrl = "https://play.meinecloud.click"
+    open val streamsSourceHost = "meinecloud.click"
 
     override suspend fun getMainPage(
         page: Int,
@@ -83,7 +83,7 @@ open class HDFilme : MainAPI() {
 
         try {
             val streamsJsUrl =
-                doc.selectFirst("script[src^='$streamsSourceUrl/ddl']")!!.attr("src")
+                doc.selectFirst("script[src*='$streamsSourceHost/ddl']")!!.attr("src")
 
             val streamsJs = app.get(streamsJsUrl).text
             val streamLinkRegex = """(?<=\\')http.*(?=\\')""".toRegex()
@@ -95,7 +95,7 @@ open class HDFilme : MainAPI() {
 
         try {
             val htmlLinksUrl =
-                doc.selectFirst("iframe[src^='$streamsSourceUrl/movie']")?.attr("src")
+                doc.selectFirst("iframe[src*='$streamsSourceHost/movie']")?.attr("src")
                     ?: throw NoSuchFieldException("Couldn't find link to iframe!")
 
             val streamsDoc = app.get(htmlLinksUrl).document
