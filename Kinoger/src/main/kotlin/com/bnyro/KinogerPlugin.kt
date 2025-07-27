@@ -4,7 +4,6 @@ package com.bnyro
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import android.content.Context
-import com.lagradost.cloudstream3.extractors.Voe1
 
 @CloudstreamPlugin
 class KinogerPlugin: Plugin() {
@@ -15,5 +14,6 @@ class KinogerPlugin: Plugin() {
         registerExtractorAPI(KinogerBe())
         registerExtractorAPI(KinogerPw())
         registerExtractorAPI(KinogerRe())
+        registerExtractorAPI(KinogerP2PPlay())
     }
 }

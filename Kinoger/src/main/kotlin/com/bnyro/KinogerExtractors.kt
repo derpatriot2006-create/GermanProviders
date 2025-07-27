@@ -24,3 +24,8 @@ class KinogerRe : VidStack() {
     override var name = "KinogerRe"
     override var mainUrl = "https://kinoger.re"
 }
+
+class KinogerP2PPlay: VidStack() {
+    override var name = "P2PPlay"
+    override var mainUrl = "https://kinoger.p2pplay.pro"
+}
