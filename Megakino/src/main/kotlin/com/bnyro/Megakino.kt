@@ -24,9 +24,11 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import org.jsoup.nodes.Element
+import java.net.URI
 
 class Megakino : MainAPI() {
-    override var mainUrl = "https://megakino.loan"
+    @Deprecated("Shouldn't be used directly. Use getActualMainUrl instead!")
+    override var mainUrl = "https://megakino.biz"
     override var name = "Megakino"
     override val hasMainPage = true
     override var lang = "de"
@@ -39,8 +41,20 @@ class Megakino : MainAPI() {
         "documentary" to "Dokumentationen",
     )
 
+    /**
+     * Follow the redirect set on [mainUrl] in order to get the current
+     * base domain of Megakino.
+     *
+     * That workaround is needed because they change they TLDs almost daily.
+     */
+    @Suppress("DEPRECATION")
+    private suspend fun getActualMainUrl(): String {
+        // follow redirects to get the real base url
+        return app.get(mainUrl).url.trimEnd('/')
+    }
+
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val document = app.get("$mainUrl/${request.data}/page/$page").document
+        val document = app.get("${getActualMainUrl()}/${request.data}/page/$page").document
         val home = document.select("#dle-content > a").mapNotNull {
             it.toSearchResult()
         }
@@ -68,7 +82,7 @@ class Megakino : MainAPI() {
     override suspend fun search(query: String): List<SearchResponse> {
         val data =
             mapOf("do" to "search", "subaction" to "search", "story" to query.replace(" ", "+"))
-        val response = app.post(mainUrl, data = data).document
+        val response = app.post(getActualMainUrl(), data = data).document
 
         return response.select("a.poster.grid-item").map {
             it.toSearchResult()
@@ -76,7 +90,11 @@ class Megakino : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val document = app.get(url).document
+        // replace base url with the redirected main url
+        val uri = URI.create(url)
+        val fixedUrl = getActualMainUrl() + uri.rawPath
+
+        val document = app.get(fixedUrl).document
         val title = document.selectFirst("div.page__subcols.d-flex h1")?.text() ?: "Unknown"
         val description = document.selectFirst("div.page__cols.d-flex p")?.text()
         val poster =
