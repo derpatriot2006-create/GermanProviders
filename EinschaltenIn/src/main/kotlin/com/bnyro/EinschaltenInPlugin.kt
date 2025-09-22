@@ -13,5 +13,7 @@ class EinschaltenInPlugin: Plugin() {
         registerMainAPI(EinschaltenInProvider())
         registerExtractorAPI(D000dCom())
         registerExtractorAPI(FileMoonSx())
+        registerExtractorAPI(Vide0Net())
+        registerExtractorAPI(DSVPlay())
     }
 }
