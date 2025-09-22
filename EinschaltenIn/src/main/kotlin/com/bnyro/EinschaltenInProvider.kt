@@ -1,15 +1,15 @@
 package com.bnyro
 
-import com.lagradost.cloudstream3.ErrorLoadingException
-import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageData
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.app
+import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
@@ -25,80 +25,69 @@ open class EinschaltenInProvider : MainAPI() {
     override val hasMainPage = true
     override val supportedTypes = setOf(TvType.Movie)
     override var mainUrl = "https://einschalten.in"
+    override val mainPage: List<MainPageData> = mainPageOf(
+        "new" to "Neue Filme",
+        "added" to "Zuletzt hinzugefügte Filme"
+    )
 
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
     ): HomePageResponse {
-        val response = app.get("${mainUrl}/__data.json")
-            .parsed<Response>()
+        val response = app.post(
+            "$mainUrl/api/search",
+            json = mapOf(
+                "pageNumber" to (page - 1).toString(),
+                "pageSize" to "32",
+                "order" to request.data
+            ),
+            headers = mapOf(
+                "Content-Type" to "application/json"
+            )
+        ).parsed<Response>()
 
-        return newHomePageResponse(
-            HomePageList("Popular", toSearchResponses(response)),
-            hasNext = false
-        )
+        val homePage = response.map { it.toSearchResponse() }
+        return newHomePageResponse(request.name, homePage, hasNext = true)
     }
 
     private fun getImageUrl(fileWithLeadingSlash: String): String {
         val file = fileWithLeadingSlash.trimStart('/')
-        return "$mainUrl/image/poster/$file"
+        return "$mainUrl/api/image/poster/$file"
     }
 
-    private fun getData(response: Response): List<Any>? {
-        return response.nodes.firstOrNull {
-            it.type == "data" && it.data.orEmpty().filterNotNull().isNotEmpty()
-        }?.data?.filterNotNull()
-    }
-
-    private fun parseMovieItems(response: Response): List<MovieItem> {
-        val dataItems = getData(response) ?: return emptyList()
-        val infoList = dataItems.filterIsInstance<Map<String, Int>>()
-
-        return infoList
-            .filter { it.containsKey("id") && it.containsKey("title") }
-            .map { infoIndices ->
-                MovieItem(
-                    id = dataItems[infoIndices["id"]!!] as Int,
-                    title = dataItems[infoIndices["title"]!!] as String,
-                    releaseDate = dataItems[infoIndices["releaseDate"]!!] as String,
-                    posterPath = dataItems[infoIndices["posterPath"]!!] as String,
-                    voteAverage = dataItems[infoIndices["voteAverage"]!!].toString().toFloatOrNull()
-                        ?: 0f,
-                    overview = infoIndices["overview"]?.let { dataItems[it] as String? },
-                    runtime = infoIndices["runtime"]?.let { dataItems[it] as Int? }
-                )
-            }
-    }
-
-    private fun toSearchResponses(response: Response): List<SearchResponse> {
-        val movieObjects = parseMovieItems(response)
-
-        return movieObjects.map {
-            newMovieSearchResponse(
-                name = it.title,
-                url = "$mainUrl/movies/${it.id}",
-                type = TvType.Movie
-            ) {
-                this.posterUrl = getImageUrl(it.posterPath)
-                this.year = it.releaseDate.take(4).toIntOrNull()
-            }
+    private fun MovieItem.toSearchResponse(): SearchResponse {
+        return newMovieSearchResponse(
+            name = title,
+            url = "$mainUrl/movies/${id}",
+            type = TvType.Movie
+        ) {
+            this.posterUrl = getImageUrl(posterPath)
+            this.year = releaseDate.take(4).toIntOrNull()
         }
     }
 
     override suspend fun quickSearch(query: String): List<SearchResponse> = search(query)
 
     override suspend fun search(query: String): List<SearchResponse> {
-        val response = app.get("${mainUrl}/search/__data.json?query=$query")
-            .parsed<Response>()
+        val response = app.post(
+            "$mainUrl/api/search",
+            json = mapOf(
+                "pageNumber" to "0",
+                "pageSize" to "32",
+                "query" to query
+            ),
+            headers = mapOf(
+                "Content-Type" to "application/json"
+            )
+        ).parsed<Response>()
 
-        return toSearchResponses(response)
+        return response.map { it.toSearchResponse() }
     }
 
     override suspend fun load(url: String): LoadResponse? {
-        val response = app.get("$url/__data.json")
-            .parsed<Response>()
-
-        val movie = parseMovieItems(response).firstOrNull() ?: return null
+        val movieId = url.substringAfterLast("/")
+        val movie = app.get("$mainUrl/api/movies/$movieId")
+            .parsed<MovieItem>()
 
         return newMovieLoadResponse(
             name = movie.title,
@@ -134,19 +123,13 @@ open class EinschaltenInProvider : MainAPI() {
         val releaseDate: String,
         val posterPath: String,
         val voteAverage: Float,
+
+        // only included in load response
         val overview: String? = null,
-        val runtime: Int? = null
+        val runtime: Int? = null,
     )
 
-    data class Response(
-        val type: String,
-        val nodes: List<Node>,
-    )
-
-    data class Node(
-        val type: String,
-        val data: List<Any?>?,
-    )
+    class Response : ArrayList<MovieItem>()
 
     data class StreamSource(
         val releaseName: String,
