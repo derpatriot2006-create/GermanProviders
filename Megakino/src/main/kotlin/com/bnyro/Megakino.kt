@@ -28,7 +28,7 @@ import java.net.URI
 
 class Megakino : MainAPI() {
     @Deprecated("Shouldn't be used directly. Use getActualMainUrl instead!")
-    override var mainUrl = "https://megakino.biz"
+    override var mainUrl = "https://megakino.ms"
     override var name = "Megakino"
     override val hasMainPage = true
     override var lang = "de"
