@@ -26,7 +26,9 @@ class Kinoger : MainAPI() {
         "stream/animation" to "Animation",
         "stream/horror" to "Horror",
         "stream/familie" to "Familie",
-        "stream/komdie" to "Komdie",
+        "stream/komdie" to "komdie",
+        "stream/animation" to "animation",
+        "stream/zeichentrick" to "zeichentrick",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
